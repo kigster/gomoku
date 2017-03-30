@@ -1,0 +1,5 @@
+file(GLOB Sources "*.cpp")
+add_subdirectory("heuristics")
+include_directories("heuristics")
+target_link_libraries(heuristics)
+add_library(game STATIC ${Sources} Game.cpp Game.h)

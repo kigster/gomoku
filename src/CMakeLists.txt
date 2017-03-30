@@ -1,0 +1,5 @@
+include_directories("game")
+add_subdirectory("game")
+set(SOURCE_FILES main.cpp main.h)
+target_link_libraries(game)
+add_executable(gomoku ${SOURCE_FILES})
