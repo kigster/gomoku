@@ -6,6 +6,7 @@
 **/install_manifest.txt
 **/CTestTestfile.cmake
 **/cmake-build-debug
+**/archive
 
 **/*.cbp
 
