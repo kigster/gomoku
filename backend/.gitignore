@@ -13,6 +13,8 @@
 # Ignore all logfiles and tempfiles.
 /log/*
 /tmp/*
+/doc/*
+
 !/log/.keep
 !/tmp/.keep
 

@@ -35,11 +35,20 @@ gem "thruster", require: false
 gem "devise"
 gem "devise-jwt"
 
+# OAuth providers
+gem "omniauth"
+gem "omniauth-google-oauth2"
+gem "omniauth-github"
+gem "omniauth-rails_csrf_protection"
+
 # CORS support for API
 gem "rack-cors"
 
 # Serialization
 gem "active_model_serializers"
+
+# State machine
+gem "aasm"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
@@ -53,10 +62,15 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+  gem "rubocop-rspec", require: false
 
   gem "rspec-rails"
   gem "rspec-its"
-  gem "factory_bot"
+  gem "factory_bot_rails"
+  gem "shoulda-matchers"
+  gem "faker"
+  gem "database_cleaner-active_record"
+  gem "yard"
 end
 
 group :development do
@@ -64,5 +78,4 @@ group :development do
   gem "web-console"
 
   # Documentation generator
-  gem "yard"
 end

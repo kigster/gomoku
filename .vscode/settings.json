@@ -1,0 +1,6 @@
+{
+    "rubyLsp.formatter": "standard",
+    "rubocop.commandPath": "/Users/kig/workspace/gomoku/backend/bin/rubocop",
+    "ruby.rubocop.autocorrectOnSave": true,
+    "ruby.rubocop.configFilePath": "/Users/kig/workspace/gomoku/backend/.rubocop.yml"
+}
