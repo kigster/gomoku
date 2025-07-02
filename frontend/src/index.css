@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* Custom styles */
+@layer base {
+  * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply font-game bg-gradient-to-br from-slate-50 to-blue-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .board-cell {
+    @apply relative w-8 h-8 flex items-center justify-center cursor-pointer transition-all duration-200;
+    @apply border border-board-dark/20 bg-gradient-to-br from-board-light to-board-medium;
+    @apply hover:bg-gradient-to-br hover:from-board-light hover:to-amber-200;
+    @apply before:content-[''] before:absolute before:inset-0 before:bg-black/5 before:opacity-0;
+    @apply hover:before:opacity-100 before:transition-opacity before:duration-200;
+  }
+
+  .board-cell:hover {
+    @apply scale-105 shadow-md z-10;
+  }
+
+  .stone {
+    @apply relative w-7 h-7 rounded-full transition-all duration-300;
+    @apply shadow-stone hover:shadow-lg transform;
+  }
+
+  .stone-black {
+    @apply bg-gradient-to-br from-gray-800 to-black;
+    @apply shadow-stone;
+  }
+
+  .stone-white {
+    @apply bg-gradient-to-br from-white to-gray-100 border-2 border-gray-300;
+    @apply shadow-stone-white;
+  }
+
+  .stone-preview {
+    @apply opacity-40 scale-75 transition-all duration-200;
+  }
+
+  .stone-preview:hover {
+    @apply opacity-70 scale-90;
+  }
+
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-sm border border-white/20 rounded-xl shadow-xl;
+  }
+
+  .button-primary {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium py-2 px-4 rounded-lg;
+    @apply shadow-lg hover:shadow-xl transform transition-all duration-200;
+    @apply hover:from-primary-600 hover:to-primary-700 hover:scale-105;
+    @apply active:scale-95;
+  }
+
+  .button-secondary {
+    @apply bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg;
+    @apply shadow-md hover:shadow-lg transform transition-all duration-200;
+    @apply hover:from-gray-200 hover:to-gray-300 hover:scale-105;
+    @apply active:scale-95;
+  }
+}
+
+@layer utilities {
+  .animate-delayed-1 {
+    animation-delay: 0.1s;
+  }
+
+  .animate-delayed-2 {
+    animation-delay: 0.2s;
+  }
+
+  .animate-delayed-3 {
+    animation-delay: 0.3s;
+  }
+
+  .animate-delayed-4 {
+    animation-delay: 0.4s;
+  }
+
+  .animate-delayed-5 {
+    animation-delay: 0.5s;
+  }
+}
