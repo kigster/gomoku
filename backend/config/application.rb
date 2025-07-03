@@ -22,13 +22,12 @@ Bundler.require(*Rails.groups)
 
 module Gomoku
   class Application < Rails::Application
-
     # TCP/IP port to listen on
-    PORT = ENV.fetch('PORT_RAILS', 3001).to_i
-    HOST = ENV.fetch('HOST_RAILS', "localhost")
+    PORT = ENV.fetch("PORT_RAILS", 3001).to_i
+    HOST = ENV.fetch("HOST_RAILS", "localhost")
 
     # Port for React frontend (what needs CORS access)
-    FRONTEND_PORT = ENV.fetch('PORT_REACT', 3000).to_i
+    FRONTEND_PORT = ENV.fetch("PORT_REACT", 3000).to_i
 
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
