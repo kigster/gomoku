@@ -5,18 +5,21 @@ This directory contains comprehensive end-to-end integration tests for the Gomok
 ## 🚀 Quick Start
 
 ### 1. Setup Test Environment
+
 ```bash
 # Install dependencies and setup test database
 npm run test:setup
 ```
 
 ### 2. Run Tests Interactively
+
 ```bash
 # Start test servers and open Cypress UI
 npm run test:e2e:open
 ```
 
 ### 3. Run Tests Headlessly
+
 ```bash
 # Run all tests in headless mode (CI/CD ready)
 npm run test:e2e
@@ -37,11 +40,13 @@ npm run test:e2e
 ## 🏗️ Architecture
 
 ### Test-Specific Ports
+
 - **Frontend**: `http://localhost:3002` (React app for testing)
 - **Backend**: `http://localhost:3003` (Rails API for testing)
 - **Development ports remain unchanged** (3000/3001)
 
 ### Directory Structure
+
 ```
 e2e/
 ├── cypress/
@@ -62,6 +67,7 @@ e2e/
 ## 🧪 Test Coverage
 
 ### Authentication Flow (`authentication.cy.js`)
+
 - ✅ User registration with valid data
 - ✅ Registration validation errors
 - ✅ Duplicate email prevention
@@ -72,6 +78,7 @@ e2e/
 - ✅ OAuth UI elements (Google/GitHub buttons)
 
 ### Game Flow (`game-flow.cy.js`)
+
 - ✅ Game board display and interface
 - ✅ Difficulty selection options
 - ✅ New game initialization
@@ -82,6 +89,7 @@ e2e/
 - ✅ Responsive design (mobile/tablet/desktop)
 
 ### Custom Commands (`commands.js`)
+
 - `cy.registerUser(userData)` - Complete user registration flow
 - `cy.loginUser(email, password)` - User login flow
 - `cy.logoutUser()` - User logout
@@ -94,17 +102,21 @@ e2e/
 ## 🔧 Configuration
 
 ### Test Environment Variables
+
 - `BACKEND_PORT=3003` - Rails test server port
 - `FRONTEND_PORT=3002` - React test server port
 - `API_BASE_URL=http://localhost:3003/api/v1` - Backend API endpoint
 - `RAILS_ENV=test` - Rails test environment
 
 ### CORS Configuration
+
 The test setup automatically configures CORS to allow:
+
 - Frontend (port 3002) → Backend (port 3003)
 - Development ports remain isolated from testing
 
 ### Database Isolation
+
 - Uses separate test database (`RAILS_ENV=test`)
 - Database reset before each test suite
 - No interference with development data
@@ -112,6 +124,7 @@ The test setup automatically configures CORS to allow:
 ## 🎯 Advanced Usage
 
 ### Running Individual Tests
+
 ```bash
 # Start servers manually
 npm run test:servers:start
@@ -124,6 +137,7 @@ npx cypress run --browser chrome
 ```
 
 ### Debugging Tests
+
 ```bash
 # Interactive mode with browser DevTools
 npm run cypress:open
@@ -133,6 +147,7 @@ DEBUG=cypress:* npm run cypress:run
 ```
 
 ### CI/CD Integration
+
 ```yaml
 # Example GitHub Actions workflow
 - name: E2E Tests
@@ -155,6 +170,7 @@ DEBUG=cypress:* npm run cypress:run
 ### Common Issues
 
 **Port conflicts:**
+
 ```bash
 # Check what's using the ports
 lsof -i :3002
@@ -165,18 +181,21 @@ make stop  # From project root
 ```
 
 **Database issues:**
+
 ```bash
 # Reset test database
 npm run test:db:reset
 ```
 
 **CORS errors:**
+
 ```bash
 # Verify CORS configuration includes test ports
 # Check backend/config/application.rb
 ```
 
 **Server startup failures:**
+
 ```bash
 # Check dependencies
 cd ../backend && bundle install
@@ -187,6 +206,7 @@ direnv allow  # From project root
 ```
 
 ### Debug Mode
+
 Add `cy.pause()` in tests to pause execution and inspect state interactively.
 
 ## 🚀 Future Enhancements
@@ -214,4 +234,4 @@ When adding new tests:
 
 - [Cypress Documentation](https://docs.cypress.io/)
 - [Rails Testing Guide](https://guides.rubyonrails.org/testing.html)
-- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) 
+- [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
