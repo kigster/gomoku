@@ -3,6 +3,9 @@
 
 .PHONY: help install start start-backend start-frontend stop test clean setup dev logs
 
+PORT_RAILS  := "$(shell bash -c "source .envrc; echo ${PORT_RAILS}")"
+PORT_REACT  := "$(shell bash -c "source .envrc; echo ${PORT_REACT}")"
+
 # Default target
 help: ## Show this help message
 	@echo "Gomoku Game Development Commands"
@@ -39,8 +42,8 @@ install-frontend: ## Install frontend dependencies only
 # Development Servers
 start: ## Start both backend and frontend development servers
 	@echo "🚀 Starting Gomoku development servers..."
-	@echo "🔧 Backend will be available at: http://localhost:3001"
-	@echo "🎨 Frontend will be available at: http://localhost:3000"
+	@echo "🔧 Backend Rails API will be available at: http://localhost:$(PORT_RAILS)"
+	@echo "🎨 Frontend ReactJS  will be available at: http://localhost:$(PORT_REACT)"
 	@echo ""
 	@echo "Press Ctrl+C to stop all servers"
 	@make -j2 start-backend start-frontend

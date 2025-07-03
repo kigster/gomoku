@@ -12,6 +12,8 @@ require "action_mailbox/engine"
 require "action_text/engine"
 require "action_view/railtie"
 require "action_cable/engine"
+require "rails_semantic_logger"
+#
 # require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
@@ -20,6 +22,11 @@ Bundler.require(*Rails.groups)
 
 module Gomoku
   class Application < Rails::Application
+
+    # TCP/IP port to listen on
+    PORT = ENV.fetch('PORT_RAILS', 3000).to_i
+    HOST = ENV.fetch('HOST_RAILS', "localhost")
+
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
 
@@ -29,7 +36,7 @@ module Gomoku
     # CORS configuration
     config.middleware.insert_before 0, Rack::Cors do
       allow do
-        origins "http://localhost:3000", "http://localhost:3001"
+        origins "http://#{HOST}:#{PORT}", "http://#{HOST}:#{PORT + 1}"
         resource "*",
           headers: :any,
           methods: [ :get, :post, :put, :patch, :delete, :options, :head ],
@@ -41,6 +48,8 @@ module Gomoku
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
+
+    config.semantic_logger.backtrace_level = :info
 
     # Configuration for the application, engines, and railties goes here.
     #

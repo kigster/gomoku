@@ -1,83 +1,149 @@
+// React and UI imports
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
-  User,
-  RefreshCw,
-  Trophy,
-  Clock,
-  Undo,
-  Brain,
-  Sparkles,
-  Zap,
-  LogIn,
-  LogOut,
-  ChevronDown,
+  User,        // Profile icon
+  RefreshCw,   // Reset/restart icon  
+  Trophy,      // Victory icon
+  Clock,       // Timer/thinking icon
+  Undo,        // Undo move icon
+  Brain,       // Medium AI difficulty icon
+  Sparkles,    // Easy AI difficulty icon
+  Zap,         // Hard AI difficulty icon
+  LogIn,       // Login button icon
+  LogOut,      // Logout button icon
+  ChevronDown, // Dropdown menu icon
 } from "lucide-react";
+
+// Game logic and services
 import { AlphaBetaGomokuAI } from "./AlphaBetaAI.ts";
 import AuthModal from "./components/AuthModal.tsx";
 import authService, { User as AuthUser } from "./services/authService.ts";
 
-// Types
+// ==================== TYPE DEFINITIONS ====================
+
+/**
+ * Represents a player or empty cell state
+ * - "black": Human player (goes first in Gomoku)
+ * - "white": AI player (goes second)
+ * - null: Empty cell
+ */
 type Player = "black" | "white" | null;
+
+/**
+ * Current state of the game
+ * - "playing": Game in progress
+ * - "won": Someone achieved 5 in a row
+ * - "draw": Board full with no winner
+ */
 type GameStatus = "playing" | "won" | "draw";
+
+/**
+ * AI difficulty levels affecting search depth and intelligence
+ * - "easy": Fast moves, shallow search
+ * - "medium": Balanced strategy and speed
+ * - "hard": Deep analysis, slower but stronger
+ */
 type Difficulty = "easy" | "medium" | "hard";
 
+/**
+ * Represents a single move in the game
+ */
 interface Move {
-  row: number;
-  col: number;
-  player: Player;
-  timestamp: number;
+  row: number;        // Board row (0-18)
+  col: number;        // Board column (0-18)
+  player: Player;     // Who made this move
+  timestamp: number;  // When the move was made (for replay/analysis)
 }
 
+/**
+ * Complete game state - all information needed to represent current game
+ */
 interface GameState {
-  board: Player[][];
-  currentPlayer: Player;
-  status: GameStatus;
-  winner: Player;
-  moveCount: number;
-  moveHistory: Move[];
-  lastMove: Move | null;
-  winningLine: [number, number][] | null;
+  board: Player[][];                    // 19x19 grid of stones/empty spaces
+  currentPlayer: Player;                // Whose turn it is
+  status: GameStatus;                   // Current game phase
+  winner: Player;                       // Who won (null if game ongoing)
+  moveCount: number;                    // Total moves played
+  moveHistory: Move[];                  // Complete move sequence for undo/replay
+  lastMove: Move | null;                // Most recent move for highlighting
+  winningLine: [number, number][] | null; // Coordinates of winning 5-in-a-row
 }
 
+/**
+ * Player statistics for wins/losses tracking
+ */
 interface GameStats {
-  wins: number;
-  losses: number;
-  draws: number;
+  wins: number;   // Games won
+  losses: number; // Games lost  
+  draws: number;  // Games drawn
 }
 
+/**
+ * Local user representation (for guest play)
+ */
 interface User {
   username: string;
   stats: GameStats;
 }
 
+/**
+ * Individual cell animation and interaction state
+ * Used for smooth visual feedback during gameplay
+ */
 interface CellState {
-  isAnimating: boolean;
-  isNew: boolean;
-  isUndoing: boolean;
-  isHovered: boolean;
+  isAnimating: boolean; // Currently playing place/undo animation
+  isNew: boolean;       // Just placed (triggers bounce animation)
+  isUndoing: boolean;   // Being removed (triggers fade-out animation)
+  isHovered: boolean;   // Mouse hovering over cell (shows preview stone)
 }
 
-// AI instance will be created based on difficulty
+// ==================== GLOBAL AI STATE ====================
+
+/**
+ * Singleton AI instance - recreated when difficulty changes
+ * Kept outside component to maintain state between renders
+ */
 let aiInstance: AlphaBetaGomokuAI | null = null;
+
+/**
+ * Track current AI difficulty to detect when to recreate AI instance
+ * Prevents unnecessary recreation of AI when other state changes
+ */
 let currentAIDifficulty: Difficulty | null = null;
 
-// Main Game Component
+// ==================== MAIN COMPONENT ====================
+
+/**
+ * Main Gomoku Game Component
+ * Handles game logic, AI opponent, authentication, and UI state
+ */
 const GomokuGame: React.FC = () => {
-  // Game State
+  
+  // ==================== GAME STATE ====================
+  
+  /**
+   * Core game state - the authoritative source of truth for the current game
+   * Contains board position, move history, game status, and win conditions
+   */
   const [gameState, setGameState] = useState<GameState>({
     board: Array(19)
       .fill(null)
-      .map(() => Array(19).fill(null)),
-    currentPlayer: "black",
-    status: "playing",
-    winner: null,
-    moveCount: 0,
-    moveHistory: [],
-    lastMove: null,
-    winningLine: null,
+      .map(() => Array(19).fill(null)), // Initialize empty 19x19 board
+    currentPlayer: "black",              // Human always plays first (black stones)
+    status: "playing",                   // Game starts in progress
+    winner: null,                        // No winner initially
+    moveCount: 0,                        // Track total moves for game analysis
+    moveHistory: [],                     // Complete move sequence for undo/replay
+    lastMove: null,                      // Used for visual highlighting
+    winningLine: null,                   // Store winning line coordinates for animation
   });
 
-  // UI State
+  // ==================== UI ANIMATION STATE ====================
+  
+  /**
+   * Per-cell animation states for smooth visual feedback
+   * Parallel array to game board tracking visual state of each cell
+   */
   const [cellStates, setCellStates] = useState<CellState[][]>(
     Array(19)
       .fill(null)
@@ -85,38 +151,99 @@ const GomokuGame: React.FC = () => {
         Array(19)
           .fill(null)
           .map(() => ({
-            isAnimating: false,
-            isNew: false,
-            isUndoing: false,
-            isHovered: false,
+            isAnimating: false, // Not currently animating
+            isNew: false,       // Not newly placed
+            isUndoing: false,   // Not being removed
+            isHovered: false,   // Not hovered by mouse
           }))
       )
   );
 
+  // ==================== INTERACTION STATE ====================
+  
+  /**
+   * Currently hovered cell coordinates for preview stone display
+   * null when no cell is hovered
+   */
   const [hoveredCell, setHoveredCell] = useState<[number, number] | null>(null);
-  const [isThinking, setIsThinking] = useState(false);
-  const [isDeepThinking, setIsDeepThinking] = useState(false);
+  
+  /**
+   * AI thinking indicators for user feedback
+   */
+  const [isThinking, setIsThinking] = useState(false);      // General AI thinking state
+  const [isDeepThinking, setIsDeepThinking] = useState(false); // Hard mode deep analysis
+  
+  /**
+   * Victory animation trigger - shows celebration overlay
+   */
   const [showVictoryAnimation, setShowVictoryAnimation] = useState(false);
 
-  // Authentication State
+  // ==================== AUTHENTICATION STATE ====================
+  
+  /**
+   * Current authenticated user (null if guest play)
+   * Loaded from localStorage on component mount
+   */
   const [authUser, setAuthUser] = useState<AuthUser | null>(
     authService.getCurrentUser()
   );
+  
+  /**
+   * Authentication modal visibility control
+   */
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  /**
+   * User profile dropdown menu visibility
+   */
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // User State (for guest play when not authenticated)
+  // ==================== LOCAL USER STATE ====================
+  
+  /**
+   * Guest player statistics (stored in component state only)
+   * Used when playing without authentication
+   */
   const [guestStats, setGuestStats] = useState({
-    wins: 0,
-    losses: 0,
-    draws: 0,
+    wins: 0,    // Games won as guest
+    losses: 0,  // Games lost as guest
+    draws: 0,   // Games drawn as guest
   });
 
+  // ==================== AI CONFIGURATION ====================
+  
+  /**
+   * Current AI difficulty setting
+   * Controls search depth and thinking time
+   */
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+
+  // ==================== REFS FOR PERFORMANCE ====================
+  
+  /**
+   * Reference to board DOM element for potential future use
+   * (click handling, measurements, etc.)
+   */
   const boardRef = useRef<HTMLDivElement>(null);
+  
+  /**
+   * Prevents multiple simultaneous AI move calculations
+   * Critical for preventing race conditions in AI processing
+   */
   const aiProcessingRef = useRef<boolean>(false);
 
-  // Enhanced win check with line detection
+  // ==================== CORE GAME LOGIC ====================
+
+  /**
+   * Win detection algorithm with line tracking for visual effects
+   * Checks all four directions from a placed stone to find 5+ in a row
+   * 
+   * @param board - Current board state to analyze
+   * @param row - Row of the newly placed stone
+   * @param col - Column of the newly placed stone  
+   * @param player - Player who placed the stone
+   * @returns Object with win status and winning line coordinates
+   */
   const checkWin = useCallback(
     (
       board: Player[][],
@@ -124,57 +251,72 @@ const GomokuGame: React.FC = () => {
       col: number,
       player: Player
     ): { hasWin: boolean; line: [number, number][] | null } => {
+      // Four directions to check: horizontal, vertical, and both diagonals
       const directions = [
-        [0, 1],
-        [1, 0],
-        [1, 1],
-        [1, -1],
+        [0, 1],  // Horizontal (left-right)
+        [1, 0],  // Vertical (up-down)
+        [1, 1],  // Diagonal (top-left to bottom-right)
+        [1, -1], // Diagonal (top-right to bottom-left)
       ];
 
+      // Check each direction for a line of 5+ stones
       for (const [dx, dy] of directions) {
-        let count = 1;
-        const line: [number, number][] = [[row, col]];
+        let count = 1; // Count starts at 1 for the placed stone
+        const line: [number, number][] = [[row, col]]; // Track winning line coordinates
 
+        // Count stones in positive direction from placed stone
         let r = row + dx,
           c = col + dy;
         while (r >= 0 && r < 19 && c >= 0 && c < 19 && board[r][c] === player) {
           count++;
-          line.push([r, c]);
+          line.push([r, c]); // Add to end of line
           r += dx;
           c += dy;
         }
 
+        // Count stones in negative direction from placed stone
         r = row - dx;
         c = col - dy;
         while (r >= 0 && r < 19 && c >= 0 && c < 19 && board[r][c] === player) {
           count++;
-          line.unshift([r, c]);
+          line.unshift([r, c]); // Add to beginning of line
           r -= dx;
           c -= dy;
         }
 
+        // Check if we found a winning line (5 or more stones)
         if (count >= 5) return { hasWin: true, line };
       }
 
+      // No winning line found
       return { hasWin: false, line: null };
     },
     []
   );
 
-  // Animate cell state changes
+  /**
+   * Animate stone placement or removal with visual feedback
+   * Triggers CSS animations through state changes
+   * 
+   * @param row - Board row coordinate
+   * @param col - Board column coordinate
+   * @param animationType - Type of animation to play
+   */
   const animateCell = useCallback(
     (row: number, col: number, animationType: "place" | "undo") => {
+      // Set animation flags to trigger CSS animations
       setCellStates((prev) => {
         const newStates = prev.map((r) => r.map((c) => ({ ...c })));
         if (animationType === "place") {
-          newStates[row][col].isAnimating = true;
-          newStates[row][col].isNew = true;
+          newStates[row][col].isAnimating = true; // Trigger place animation
+          newStates[row][col].isNew = true;       // Mark as newly placed
         } else {
-          newStates[row][col].isUndoing = true;
+          newStates[row][col].isUndoing = true;   // Trigger undo animation
         }
         return newStates;
       });
 
+      // Clear animation flags after animation completes
       setTimeout(
         () => {
           setCellStates((prev) => {
@@ -185,212 +327,265 @@ const GomokuGame: React.FC = () => {
             return newStates;
           });
         },
-        animationType === "place" ? 600 : 400
+        animationType === "place" ? 600 : 400 // Place animations take longer
       );
     },
     []
   );
 
-  // Handle player move (black stones only)
+  /**
+   * Handle human player move (black stones only)
+   * This is the main entry point for player interactions with the board
+   * 
+   * @param row - Target row for stone placement (0-18)
+   * @param col - Target column for stone placement (0-18)
+   */
   const makeMove = useCallback(
     (row: number, col: number) => {
-      // Block moves if cell occupied, game not playing, or AI is thinking
+      // ===== MOVE VALIDATION =====
+      // Prevent invalid moves in various scenarios
       if (
-        gameState.board[row][col] !== null ||
-        gameState.status !== "playing" ||
-        isThinking ||
-        gameState.currentPlayer !== "black"
+        gameState.board[row][col] !== null ||   // Cell already occupied
+        gameState.status !== "playing" ||       // Game not in progress
+        isThinking ||                           // AI is currently thinking
+        gameState.currentPlayer !== "black"     // Not human player's turn
       ) {
-        return;
+        return; // Early exit for invalid moves
       }
 
-      const newBoard = gameState.board.map((r) => [...r]);
-      newBoard[row][col] = gameState.currentPlayer;
+      // ===== BOARD STATE UPDATE =====
+      // Create new board state with the move applied
+      const newBoard = gameState.board.map((r) => [...r]); // Deep copy board
+      newBoard[row][col] = gameState.currentPlayer;        // Place the stone
 
+      // ===== WIN CONDITION CHECKING =====
       const winCheck = checkWin(newBoard, row, col, gameState.currentPlayer);
       const isBoardFull = newBoard.every((row) =>
         row.every((cell) => cell !== null)
       );
 
+      // ===== MOVE RECORD CREATION =====
       const move: Move = {
-        row,
+        row,                              // Board coordinates
         col,
-        player: gameState.currentPlayer,
-        timestamp: Date.now(),
+        player: gameState.currentPlayer,  // Who made the move
+        timestamp: Date.now(),            // When move was made
       };
 
-      // Animate the stone placement
-      animateCell(row, col, "place");
+      // ===== VISUAL ANIMATION =====
+      animateCell(row, col, "place"); // Trigger stone placement animation
 
+      // ===== GAME STATE UPDATE =====
       setGameState((prev) => ({
         ...prev,
         board: newBoard,
+        // Switch players unless game ended
         currentPlayer:
           winCheck.hasWin || isBoardFull
-            ? prev.currentPlayer
+            ? prev.currentPlayer      // Keep current player if game ended
             : prev.currentPlayer === "black"
-            ? "white"
-            : "black",
+            ? "white"                 // Switch to AI
+            : "black",                // Switch to human (shouldn't happen here)
+        // Update game status based on outcome
         status: winCheck.hasWin ? "won" : isBoardFull ? "draw" : "playing",
         winner: winCheck.hasWin ? prev.currentPlayer : null,
-        moveCount: prev.moveCount + 1,
-        moveHistory: [...prev.moveHistory, move],
-        lastMove: move,
-        winningLine: winCheck.line,
+        moveCount: prev.moveCount + 1,           // Increment move counter
+        moveHistory: [...prev.moveHistory, move], // Add move to history
+        lastMove: move,                          // Track for highlighting
+        winningLine: winCheck.line,              // Store winning line for animation
       }));
 
-      // Show victory animation
+      // ===== VICTORY CELEBRATION =====
       if (winCheck.hasWin) {
         setShowVictoryAnimation(true);
-        setTimeout(() => setShowVictoryAnimation(false), 3000);
+        setTimeout(() => setShowVictoryAnimation(false), 3000); // 3-second celebration
       }
 
-      // Update stats if game ended
+      // ===== STATISTICS UPDATE =====
+      // Update player statistics when game ends
       if (winCheck.hasWin) {
         if (authUser) {
-          // TODO: Send to API to update user stats
+          // For authenticated users: sync with server
+          // TODO: Send win/loss data to API endpoint
           authService.refreshUserData();
         } else {
+          // For guest users: update local statistics
           setGuestStats((prev) => ({
             ...prev,
+            // Human won if current player is black (human), otherwise AI won
             [gameState.currentPlayer === "black" ? "wins" : "losses"]:
               prev[gameState.currentPlayer === "black" ? "wins" : "losses"] + 1,
           }));
         }
       } else if (isBoardFull) {
+        // Handle draw game statistics
         if (authUser) {
-          // TODO: Send to API to update user stats
+          // TODO: Send draw data to API endpoint
           authService.refreshUserData();
         } else {
           setGuestStats((prev) => ({ ...prev, draws: prev.draws + 1 }));
         }
       }
     },
-    [gameState, checkWin, isThinking, animateCell]
+    [gameState, checkWin, isThinking, animateCell] // Dependencies for useCallback optimization
   );
 
-  // Undo last move
+  /**
+   * Undo the last move(s) - smart undo that removes both AI and player moves
+   * Only available during human player's turn to maintain game flow
+   */
   const undoLastMove = useCallback(() => {
+    // ===== UNDO VALIDATION =====
     if (
-      gameState.moveHistory.length === 0 ||
-      gameState.status !== "playing" ||
-      isThinking
+      gameState.moveHistory.length === 0 ||  // No moves to undo
+      gameState.status !== "playing" ||      // Game not in progress
+      isThinking                             // AI currently thinking
     ) {
-      return;
+      return; // Early exit if undo not allowed
     }
 
-    const lastMove = gameState.moveHistory[gameState.moveHistory.length - 1];
+    // ===== MOVE HISTORY ANALYSIS =====
+    const lastMove = gameState.moveHistory[gameState.moveHistory.length - 1];     // Most recent move
     const secondLastMove =
-      gameState.moveHistory[gameState.moveHistory.length - 2];
+      gameState.moveHistory[gameState.moveHistory.length - 2];                   // Second most recent move
 
-    // Only allow undo if it's player's turn (black)
+    // ===== SMART UNDO LOGIC =====
+    // Only allow undo when it's human's turn (after AI has moved)
+    // This ensures undo always brings the game back to human's turn
     if (lastMove.player === "white") {
-      // Undo both AI move and player move
-      const newBoard = gameState.board.map((r) => [...r]);
-      newBoard[lastMove.row][lastMove.col] = null;
+      // ===== BOARD STATE RESTORATION =====
+      const newBoard = gameState.board.map((r) => [...r]); // Deep copy current board
+      newBoard[lastMove.row][lastMove.col] = null;          // Remove AI's move
 
-      // Animate undo
-      animateCell(lastMove.row, lastMove.col, "undo");
+      // ===== VISUAL FEEDBACK =====
+      animateCell(lastMove.row, lastMove.col, "undo"); // Animate AI move removal
 
+      // If there's a human move to undo as well, remove it too
       if (secondLastMove) {
-        newBoard[secondLastMove.row][secondLastMove.col] = null;
-        animateCell(secondLastMove.row, secondLastMove.col, "undo");
+        newBoard[secondLastMove.row][secondLastMove.col] = null; // Remove human's move
+        animateCell(secondLastMove.row, secondLastMove.col, "undo"); // Animate human move removal
       }
 
+      // ===== GAME STATE RESTORATION =====
+      // Delay state update to allow animations to start
       setTimeout(() => {
         setGameState((prev) => ({
           ...prev,
           board: newBoard,
-          currentPlayer: "black",
-          status: "playing",
-          winner: null,
-          moveCount: Math.max(0, prev.moveCount - (secondLastMove ? 2 : 1)),
-          moveHistory: prev.moveHistory.slice(0, secondLastMove ? -2 : -1),
+          currentPlayer: "black",              // Always return to human's turn
+          status: "playing",                   // Reset to playing state
+          winner: null,                        // Clear any winner state
+          moveCount: Math.max(0, prev.moveCount - (secondLastMove ? 2 : 1)), // Reduce move count
+          moveHistory: prev.moveHistory.slice(0, secondLastMove ? -2 : -1),   // Remove undone moves
+          // Find the new last move after undo
           lastMove:
             gameState.moveHistory[
               gameState.moveHistory.length - (secondLastMove ? 3 : 2)
             ] || null,
-          winningLine: null,
+          winningLine: null,                   // Clear any winning line
         }));
-      }, 200);
+      }, 200); // Brief delay for animation synchronization
     }
+    // Note: If lastMove.player === "black", we don't allow undo because 
+    // it would be the human's turn anyway, so no undo is needed
   }, [gameState, isThinking, animateCell]);
 
-  // AI Move Effect
+  /**
+   * AI Move Processing Effect
+   * Triggers when it's the AI's turn and handles the complete AI move cycle:
+   * 1. AI analysis and move selection
+   * 2. Move execution and board update
+   * 3. Win/draw detection and statistics update
+   * 4. UI state management (thinking indicators, animations)
+   */
   useEffect(() => {
+    // ===== AI TURN DETECTION =====
+    // Check if AI should make a move
     if (
-      gameState.currentPlayer === "white" &&
-      gameState.status === "playing" &&
-      !aiProcessingRef.current
+      gameState.currentPlayer === "white" &&  // AI plays white stones
+      gameState.status === "playing" &&       // Game is in progress
+      !aiProcessingRef.current                // Prevent concurrent AI processing
     ) {
-      aiProcessingRef.current = true;
-      setIsThinking(true);
+      // ===== AI PROCESSING INITIALIZATION =====
+      aiProcessingRef.current = true; // Set processing flag to prevent race conditions
+      setIsThinking(true);             // Show general thinking indicator
 
-      // Set deep thinking mode for hard difficulty
+      // ===== DIFFICULTY-SPECIFIC UI FEEDBACK =====
+      // Show special indicator for hard mode deep analysis
       if (difficulty === "hard") {
-        setIsDeepThinking(true);
+        setIsDeepThinking(true); // Triggers "🧠 AI analyzing deeply..." message
       }
 
-      // Use a minimal delay to allow UI to update, then make move immediately
+      // ===== AI MOVE CALCULATION =====
+      // Use minimal delay to allow UI state updates to render before blocking calculation
       const timer = setTimeout(() => {
-        // Create or update AI instance when difficulty changes
+        // ===== AI INSTANCE MANAGEMENT =====
+        // Create or recreate AI instance when difficulty changes
         if (!aiInstance || currentAIDifficulty !== difficulty) {
-          aiInstance = new AlphaBetaGomokuAI(difficulty, "white");
-          currentAIDifficulty = difficulty;
+          aiInstance = new AlphaBetaGomokuAI(difficulty, "white"); // AI plays white
+          currentAIDifficulty = difficulty; // Track current difficulty
         }
 
-        const move = aiInstance.findBestMove(gameState.board);
+        // ===== MOVE GENERATION =====
+        const move = aiInstance.findBestMove(gameState.board); // Get AI's chosen move
 
         if (move) {
-          // Make AI move directly by updating state
-          const newBoard = gameState.board.map((r) => [...r]);
-          newBoard[move[0]][move[1]] = "white";
+          // ===== BOARD STATE UPDATE =====
+          const newBoard = gameState.board.map((r) => [...r]); // Deep copy board
+          newBoard[move[0]][move[1]] = "white";                 // Place AI stone
 
+          // ===== GAME OUTCOME ANALYSIS =====
           const winCheck = checkWin(newBoard, move[0], move[1], "white");
           const isBoardFull = newBoard.every((row) =>
             row.every((cell) => cell !== null)
           );
 
+          // ===== MOVE RECORD CREATION =====
           const aiMove = {
-            row: move[0],
+            row: move[0],                    // AI's move coordinates
             col: move[1],
-            player: "white" as Player,
-            timestamp: Date.now(),
+            player: "white" as Player,       // AI is always white
+            timestamp: Date.now(),           // When AI made the move
           };
 
-          // Animate the stone placement
-          animateCell(move[0], move[1], "place");
+          // ===== VISUAL ANIMATION =====
+          animateCell(move[0], move[1], "place"); // Trigger stone placement animation
 
+          // ===== GAME STATE UPDATE =====
           setGameState((prev) => ({
             ...prev,
             board: newBoard,
+            // Switch to human unless game ended
             currentPlayer: winCheck.hasWin || isBoardFull ? "white" : "black",
             status: winCheck.hasWin ? "won" : isBoardFull ? "draw" : "playing",
-            winner: winCheck.hasWin ? "white" : null,
-            moveCount: prev.moveCount + 1,
-            moveHistory: [...prev.moveHistory, aiMove],
-            lastMove: aiMove,
-            winningLine: winCheck.line,
+            winner: winCheck.hasWin ? "white" : null, // AI wins if win detected
+            moveCount: prev.moveCount + 1,            // Increment move counter
+            moveHistory: [...prev.moveHistory, aiMove], // Add AI move to history
+            lastMove: aiMove,                         // Track for highlighting
+            winningLine: winCheck.line,               // Store winning line for animation
           }));
 
-          // Show victory animation
+          // ===== VICTORY CELEBRATION =====
           if (winCheck.hasWin) {
             setShowVictoryAnimation(true);
-            setTimeout(() => setShowVictoryAnimation(false), 3000);
+            setTimeout(() => setShowVictoryAnimation(false), 3000); // 3-second celebration
 
-            // Update stats
+            // ===== AI WIN STATISTICS =====
             if (authUser) {
-              // TODO: Send to API to update user stats
+              // For authenticated users: sync loss with server
+              // TODO: Send loss data to API endpoint
               authService.refreshUserData();
             } else {
+              // For guest users: increment local loss counter
               setGuestStats((prev) => ({
                 ...prev,
-                losses: prev.losses + 1,
+                losses: prev.losses + 1, // Human lost, AI won
               }));
             }
           } else if (isBoardFull) {
+            // ===== DRAW GAME STATISTICS =====
             if (authUser) {
-              // TODO: Send to API to update user stats
+              // TODO: Send draw data to API endpoint
               authService.refreshUserData();
             } else {
               setGuestStats((prev) => ({ ...prev, draws: prev.draws + 1 }));
@@ -398,40 +593,49 @@ const GomokuGame: React.FC = () => {
           }
         }
 
-        aiProcessingRef.current = false;
-        setIsThinking(false);
-        setIsDeepThinking(false);
-      }, 50); // Minimal delay just for UI responsiveness
+        // ===== CLEANUP AND STATE RESET =====
+        aiProcessingRef.current = false; // Clear processing flag
+        setIsThinking(false);             // Hide thinking indicator
+        setIsDeepThinking(false);         // Hide deep thinking indicator
+      }, 50); // 50ms delay for UI responsiveness (allows thinking indicators to show)
 
+      // ===== CLEANUP FUNCTION =====
+      // Clean up if component unmounts or dependencies change during AI processing
       return () => {
-        clearTimeout(timer);
-        aiProcessingRef.current = false;
-        setIsDeepThinking(false);
+        clearTimeout(timer);              // Cancel pending AI move
+        aiProcessingRef.current = false;  // Reset processing flag
+        setIsDeepThinking(false);         // Clear deep thinking state
       };
     }
   }, [
-    gameState.currentPlayer,
-    gameState.status,
-    gameState.board,
-    difficulty,
-    checkWin,
-    animateCell,
-  ]); // Removed isThinking dependency
+    gameState.currentPlayer, // Trigger when player changes
+    gameState.status,        // Trigger when game status changes  
+    gameState.board,         // Trigger when board state changes
+    difficulty,              // Trigger when AI difficulty changes
+    checkWin,                // Stable function dependency
+    animateCell,             // Stable function dependency
+  ]); // Note: Intentionally excluded isThinking to prevent infinite loops
 
-  // Reset game
+  /**
+   * Reset game to initial state
+   * Clears all game data and resets UI to start a fresh game
+   */
   const resetGame = useCallback(() => {
+    // ===== RESET CORE GAME STATE =====
     setGameState({
       board: Array(19)
         .fill(null)
-        .map(() => Array(19).fill(null)),
-      currentPlayer: "black",
-      status: "playing",
-      winner: null,
-      moveCount: 0,
-      moveHistory: [],
-      lastMove: null,
-      winningLine: null,
+        .map(() => Array(19).fill(null)), // Fresh empty 19x19 board
+      currentPlayer: "black",              // Human always starts first
+      status: "playing",                   // Ready for new game
+      winner: null,                        // No winner
+      moveCount: 0,                        // Reset move counter
+      moveHistory: [],                     // Clear all moves
+      lastMove: null,                      // No last move
+      winningLine: null,                   // No winning line
     });
+
+    // ===== RESET UI ANIMATION STATE =====
     setCellStates(
       Array(19)
         .fill(null)
@@ -439,162 +643,234 @@ const GomokuGame: React.FC = () => {
           Array(19)
             .fill(null)
             .map(() => ({
-              isAnimating: false,
-              isNew: false,
-              isUndoing: false,
-              isHovered: false,
+              isAnimating: false, // No animations
+              isNew: false,       // No new stones
+              isUndoing: false,   // No undo animations
+              isHovered: false,   // No hover states
             }))
         )
     );
-    setShowVictoryAnimation(false);
-    setIsDeepThinking(false);
-    aiProcessingRef.current = false;
-    // Reset AI instance
-    aiInstance = null;
-    currentAIDifficulty = null;
+
+    // ===== RESET VISUAL EFFECTS =====
+    setShowVictoryAnimation(false); // Hide victory celebration
+    setIsDeepThinking(false);       // Clear AI thinking indicators
+
+    // ===== RESET AI STATE =====
+    aiProcessingRef.current = false; // Clear processing flag
+    aiInstance = null;              // Force AI recreation for next game
+    currentAIDifficulty = null;     // Reset difficulty tracking
   }, []);
 
-  // Handle cell hover
+  /**
+   * Handle mouse hover over board cells
+   * Shows preview stone and manages hover animation states
+   * 
+   * @param row - Cell row coordinate
+   * @param col - Cell column coordinate
+   * @param isHovering - Whether mouse is entering or leaving the cell
+   */
   const handleCellHover = useCallback(
     (row: number, col: number, isHovering: boolean) => {
+      // ===== HOVER VALIDATION =====
+      // Don't show hover effects in these conditions:
       if (
-        gameState.board[row][col] !== null ||
-        gameState.status !== "playing" ||
-        isThinking
+        gameState.board[row][col] !== null ||  // Cell already occupied
+        gameState.status !== "playing" ||      // Game not in progress
+        isThinking                             // AI is thinking
       ) {
-        return;
+        return; // Early exit - no hover feedback
       }
 
-      setHoveredCell(isHovering ? [row, col] : null);
+      // ===== HOVER STATE MANAGEMENT =====
+      setHoveredCell(isHovering ? [row, col] : null); // Track currently hovered cell
+
+      // ===== CELL VISUAL STATE UPDATE =====
       setCellStates((prev) => {
-        const newStates = prev.map((r) => r.map((c) => ({ ...c })));
-        newStates[row][col].isHovered = isHovering;
+        const newStates = prev.map((r) => r.map((c) => ({ ...c }))); // Deep copy states
+        newStates[row][col].isHovered = isHovering; // Set hover flag for CSS styling
         return newStates;
       });
     },
-    [gameState.board, gameState.status, isThinking]
+    [gameState.board, gameState.status, isThinking] // Optimize with dependency tracking
   );
 
-  // Render cell
+  /**
+   * Render individual board cell with stone, animations, and interactive effects
+   * Creates the visual representation of each intersection on the game board
+   * 
+   * @param row - Cell row coordinate (0-18)
+   * @param col - Cell column coordinate (0-18)
+   * @returns JSX element representing the board cell
+   */
   const renderCell = (row: number, col: number) => {
-    const cell = gameState.board[row][col];
-    const cellState = cellStates[row][col];
-    const isLastMove =
+    // ===== CELL STATE ANALYSIS =====
+    const cell = gameState.board[row][col];          // Current stone at position (black/white/null)
+    const cellState = cellStates[row][col];          // Animation and interaction state
+    const isLastMove =                               // True if this was the most recent move
       gameState.lastMove?.row === row && gameState.lastMove?.col === col;
-    const isWinningCell = gameState.winningLine?.some(
+    const isWinningCell = gameState.winningLine?.some( // True if part of winning line
       ([r, c]) => r === row && c === col
     );
-    const isHovered = hoveredCell?.[0] === row && hoveredCell?.[1] === col;
+    const isHovered = hoveredCell?.[0] === row && hoveredCell?.[1] === col; // True if mouse hovering
 
     return (
       <div
         key={`${row}-${col}`}
         className={`board-cell group relative transition-all duration-200 ${
-          isWinningCell ? "animate-pulse-soft" : ""
-        } ${isHovered ? "scale-110 z-20" : "z-10"}`}
-        onClick={() => makeMove(row, col)}
-        onMouseEnter={() => handleCellHover(row, col, true)}
-        onMouseLeave={() => handleCellHover(row, col, false)}
+          isWinningCell ? "animate-pulse-soft" : ""  // Winning cells pulse softly
+        } ${isHovered ? "scale-110 z-20" : "z-10"}`} // Hover enlarges cell
+        onClick={() => makeMove(row, col)}            // Handle click to place stone
+        onMouseEnter={() => handleCellHover(row, col, true)}  // Show hover effects
+        onMouseLeave={() => handleCellHover(row, col, false)} // Hide hover effects
       >
-        {/* Cell highlight for last move */}
+        {/* ===== VISUAL HIGHLIGHTS ===== */}
+        
+        {/* Last move indicator - subtle glow around most recent move */}
         {isLastMove && (
           <div className="absolute inset-0 bg-primary-200/40 rounded-full animate-pulse-soft" />
         )}
 
-        {/* Winning line highlight */}
+        {/* Winning line highlight - golden glow for winning stones */}
         {isWinningCell && (
           <div className="absolute inset-0 bg-yellow-300/60 rounded-full animate-board-glow" />
         )}
 
-        {/* Stone or preview */}
+        {/* ===== STONE RENDERING ===== */}
         {cell ? (
+          // Placed stone with animations and styling
           <div
             className={`stone ${
-              cell === "black" ? "stone-black" : "stone-white"
-            } ${cellState.isNew ? "animate-stone-place" : ""} ${
-              cellState.isUndoing ? "animate-undo" : ""
-            } ${isLastMove ? "ring-2 ring-primary-400 ring-opacity-60" : ""}`}
+              cell === "black" ? "stone-black" : "stone-white"    // Stone color
+            } ${cellState.isNew ? "animate-stone-place" : ""      // Placement animation
+            } ${cellState.isUndoing ? "animate-undo" : ""         // Undo animation
+            } ${isLastMove ? "ring-2 ring-primary-400 ring-opacity-60" : ""}`} // Last move ring
           />
-        ) : isHovered &&
-          gameState.currentPlayer === "black" &&
-          gameState.status === "playing" &&
-          !isThinking ? (
+        ) : isHovered &&                                          // Show preview stone if:
+          gameState.currentPlayer === "black" &&                  // - It's human's turn
+          gameState.status === "playing" &&                       // - Game is active
+          !isThinking ? (                                         // - AI isn't thinking
           <div className="stone stone-black stone-preview animate-stone-hover" />
         ) : null}
 
-        {/* Hover effect overlay */}
+        {/* ===== HOVER EFFECT OVERLAY ===== */}
+        {/* Subtle white overlay that appears on hover for visual feedback */}
         <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-full" />
       </div>
     );
   };
 
+  // ==================== UI UTILITY FUNCTIONS ====================
+
+  /**
+   * Get TailwindCSS color class for difficulty level
+   * Used for consistent color theming across UI
+   * 
+   * @param level - AI difficulty setting
+   * @returns TailwindCSS text color class
+   */
   const getDifficultyColor = (level: Difficulty) => {
     switch (level) {
       case "easy":
-        return "text-green-600";
+        return "text-green-600";   // Green for easy/beginner
       case "medium":
-        return "text-yellow-600";
+        return "text-yellow-600";  // Yellow for medium/intermediate
       case "hard":
-        return "text-red-600";
+        return "text-red-600";     // Red for hard/expert
       default:
-        return "text-gray-600";
+        return "text-gray-600";    // Fallback gray
     }
   };
 
+  /**
+   * Get appropriate icon component for difficulty level
+   * Visual indicators that help users understand AI strength
+   * 
+   * @param level - AI difficulty setting
+   * @returns Lucide React icon component
+   */
   const getDifficultyIcon = (level: Difficulty) => {
     switch (level) {
       case "easy":
-        return <Sparkles className="w-4 h-4 text-green-500" />;
+        return <Sparkles className="w-4 h-4 text-green-500" />; // Sparkles = fun/easy
       case "medium":
-        return <Brain className="w-4 h-4 text-yellow-500" />;
+        return <Brain className="w-4 h-4 text-yellow-500" />;   // Brain = thinking/strategy
       case "hard":
-        return <Zap className="w-4 h-4 text-red-500" />;
+        return <Zap className="w-4 h-4 text-red-500" />;       // Lightning = power/speed
     }
   };
 
+  /**
+   * Get human-readable description of AI difficulty
+   * Explains what each difficulty level means in technical terms
+   * 
+   * @param level - AI difficulty setting
+   * @returns User-friendly description string
+   */
   const getDifficultyDescription = (level: Difficulty) => {
     switch (level) {
       case "easy":
-        return "1 move ahead with alpha-beta pruning";
+        return "1 move ahead with alpha-beta pruning";           // Shallow search
       case "medium":
-        return "Up to 4 moves ahead for strategic play";
+        return "Up to 4 moves ahead for strategic play";         // Moderate depth
       case "hard":
-        return "Advanced search with iterative deepening (up to 5 moves)";
+        return "Advanced search with iterative deepening (up to 5 moves)"; // Deep analysis
     }
   };
 
-  // Authentication handlers
+  // ==================== AUTHENTICATION HANDLERS ====================
+
+  /**
+   * Handle successful authentication
+   * Updates local state and closes authentication modal
+   * 
+   * @param user - Authenticated user data from server
+   */
   const handleAuthSuccess = (user: AuthUser) => {
-    setAuthUser(user);
-    setIsAuthModalOpen(false);
+    setAuthUser(user);           // Store user in local state
+    setIsAuthModalOpen(false);   // Close login modal
   };
 
+  /**
+   * Handle user logout
+   * Clears authentication state and closes user menu
+   */
   const handleLogout = async () => {
-    await authService.logout();
-    setAuthUser(null);
-    setShowUserMenu(false);
+    await authService.logout();  // Clear server-side session
+    setAuthUser(null);           // Clear local user state
+    setShowUserMenu(false);      // Close user dropdown
   };
 
+  /**
+   * Handle login button click
+   * Opens the authentication modal for login/registration
+   */
   const handleLoginClick = () => {
-    setIsAuthModalOpen(true);
+    setIsAuthModalOpen(true);    // Show login/register modal
   };
 
-  // Close user menu when clicking outside
+  // ==================== UI EVENT HANDLERS ====================
+
+  /**
+   * Close user dropdown menu when clicking outside
+   * Provides better UX by auto-closing menus on outside clicks
+   */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showUserMenu) {
-        setShowUserMenu(false);
+        setShowUserMenu(false);  // Close menu on any click when open
       }
     };
 
+    // Only add listener when menu is open (performance optimization)
     if (showUserMenu) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
+    // Cleanup listener on unmount or when menu closes
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showUserMenu]);
+  }, [showUserMenu]); // Re-run when menu state changes
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">

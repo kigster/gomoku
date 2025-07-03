@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
+  get "home/index"
   devise_for :users,
-    path: "auth",
+    path: "api/v1/auth",
     path_names: {
       registration: "register",
       sign_in: "login",
@@ -14,7 +15,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       # Authentication routes
-      post "auth/login", to: "auth#login"
+      post "auth/login" , to: "auth#login"
       post "auth/register", to: "auth#register"
       post "auth/oauth", to: "auth#oauth"
       delete "auth/logout", to: "auth#logout"

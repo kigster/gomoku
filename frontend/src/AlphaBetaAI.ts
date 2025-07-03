@@ -87,35 +87,49 @@ export class AlphaBetaGomokuAI {
   private aiPlayer: CellType; // Which player the AI is (BLACK or WHITE)
   private humanPlayer: CellType; // Which player the human is (opposite of AI)
 
+  /**
+   * Initialize the Gomoku AI with specified difficulty and color
+   *
+   * @param difficulty - AI skill level: 'easy', 'medium', or 'hard'
+   * @param aiColor - Which color the AI plays: 'black' or 'white'
+   */
   constructor(
     difficulty: Difficulty = "medium",
     aiColor: "black" | "white" = "white"
   ) {
     this.difficulty = difficulty;
 
-    // Set search depth based on difficulty
+    // Configure search depth based on difficulty level
+    // Higher depth = stronger play but slower response
     this.maxDepth = {
-      easy: 2, // Looks 1 move ahead for both AI and opponent
-      medium: 4, // Looks up to 4 moves ahead for both players
-      hard: 5, // Deeper search with iterative deepening and advanced heuristics
+      easy: 2, // Shallow search: 1 move ahead for each player
+      medium: 4, // Moderate search: up to 2 moves ahead for each player
+      hard: 5, // Deep search: up to 2.5 moves ahead with advanced techniques
     }[difficulty];
 
+    // Set which player types the AI controls
     this.aiPlayer = aiColor === "white" ? CellType.WHITE : CellType.BLACK;
     this.humanPlayer = aiColor === "white" ? CellType.BLACK : CellType.WHITE;
   }
 
   /**
-   * Main entry point - finds the best move using Alpha-Beta pruning
+   * Main entry point - find the best move for current board position
+   * This is the public interface called by the game component
+   *
+   * @param board - Current game board state using external format
+   * @returns [row, col] coordinates of best move, or null if no moves available
    */
   public findBestMove(board: Player[][]): [number, number] | null {
+    // Convert to internal representation for faster processing
     const internalBoard = this.convertToInternalBoard(board);
 
-    // For hard difficulty, use iterative deepening to try to solve optimally
+    // Use appropriate search strategy based on difficulty
     if (this.difficulty === "hard") {
+      // Hard mode: Use iterative deepening with time management
       return this.findBestMoveWithIterativeDeepening(internalBoard);
     }
 
-    // For easy and medium, use fixed depth search
+    // Easy/Medium modes: Use standard alpha-beta search at fixed depth
     const result = this.alphaBeta(
       internalBoard,
       this.maxDepth,
@@ -124,6 +138,7 @@ export class AlphaBetaGomokuAI {
       true // AI is maximizing player
     );
 
+    // Return move coordinates or null if no moves found
     return result.bestMove ? [result.bestMove.row, result.bestMove.col] : null;
   }
 
@@ -318,7 +333,7 @@ export class AlphaBetaGomokuAI {
   /**
    * Calculate score at a specific position (port of calc_score_at from C)
    * This is the core evaluation function that determines how valuable placing a stone would be
-   * 
+   *
    * @param board - Current board state
    * @param player - Which player we're calculating for (AI or human)
    * @param x - Row coordinate to evaluate
@@ -333,12 +348,12 @@ export class AlphaBetaGomokuAI {
   ): number {
     // Define search area around the target position
     // This limits analysis to relevant nearby stones
-    const minX = Math.max(x - this.SEARCH_RADIUS, 0);                    // Leftmost column to check
-    const maxX = Math.min(x + this.SEARCH_RADIUS, this.BOARD_SIZE - 1);  // Rightmost column to check
-    const minY = Math.max(y - this.SEARCH_RADIUS, 0);                    // Topmost row to check
-    const maxY = Math.min(y + this.SEARCH_RADIUS, this.BOARD_SIZE - 1);  // Bottom row to check
+    const minX = Math.max(x - this.SEARCH_RADIUS, 0); // Leftmost column to check
+    const maxX = Math.min(x + this.SEARCH_RADIUS, this.BOARD_SIZE - 1); // Rightmost column to check
+    const minY = Math.max(y - this.SEARCH_RADIUS, 0); // Topmost row to check
+    const maxY = Math.min(y + this.SEARCH_RADIUS, this.BOARD_SIZE - 1); // Bottom row to check
 
-    const threats: ThreatType[] = [];  // Store threats found in each direction
+    const threats: ThreatType[] = []; // Store threats found in each direction
 
     // Analyze all 4 directions for threats: horizontal, vertical, and 2 diagonals
     // Each direction is analyzed independently, then combined
@@ -398,7 +413,7 @@ export class AlphaBetaGomokuAI {
     // Calculate total score from individual threats in each direction
     let score = 0;
     for (const threat of threats) {
-      score += this.threatCost[threat];  // Add base threat value
+      score += this.threatCost[threat]; // Add base threat value
     }
 
     // Add bonus scores for combination threats (intersecting patterns)
@@ -409,11 +424,22 @@ export class AlphaBetaGomokuAI {
       }
     }
 
-    return score;  // Return total strategic value of this position
+    return score; // Return total strategic value of this position
   }
 
   /**
    * Extract a row of cells in a specific direction around position (x,y)
+   * Creates a 1D array representing stones in one direction for easier analysis
+   *
+   * @param board - Current board state
+   * @param x - Center X coordinate
+   * @param y - Center Y coordinate
+   * @param minX - Minimum X boundary for search
+   * @param maxX - Maximum X boundary for search
+   * @param minY - Minimum Y boundary for search
+   * @param maxY - Maximum Y boundary for search
+   * @param direction - Which direction to extract (horizontal, vertical, or diagonal)
+   * @returns Array of CellType values representing the line of stones
    */
   private extractRow(
     board: CellType[][],
@@ -425,28 +451,33 @@ export class AlphaBetaGomokuAI {
     maxY: number,
     direction: "horizontal" | "vertical" | "diagonal1" | "diagonal2"
   ): CellType[] {
-    const rowSize = this.SEARCH_RADIUS * 2 + 1;
-    const row: CellType[] = new Array(rowSize).fill(CellType.OUT_OF_BOUNDS);
-    const centerIndex = this.SEARCH_RADIUS;
+    const rowSize = this.SEARCH_RADIUS * 2 + 1; // Total length of extracted row
+    const row: CellType[] = new Array(rowSize).fill(CellType.OUT_OF_BOUNDS); // Initialize with boundaries
+    const centerIndex = this.SEARCH_RADIUS; // Position of target square in array
 
     if (direction === "horizontal") {
-      // Walk horizontally
+      // Extract horizontal line (left-right)
+      // Walk right from center
       for (let i = x + 1, index = centerIndex + 1; i <= maxX; i++, index++) {
         row[index] = board[i][y];
       }
+      // Walk left from center
       for (let i = x - 1, index = centerIndex - 1; i >= minX; i--, index--) {
         row[index] = board[i][y];
       }
     } else if (direction === "vertical") {
-      // Walk vertically
+      // Extract vertical line (up-down)
+      // Walk down from center
       for (let j = y + 1, index = centerIndex + 1; j <= maxY; j++, index++) {
         row[index] = board[x][j];
       }
+      // Walk up from center
       for (let j = y - 1, index = centerIndex - 1; j >= minY; j--, index--) {
         row[index] = board[x][j];
       }
     } else if (direction === "diagonal1") {
-      // Walk diagonally (top-left to bottom-right)
+      // Extract diagonal line (top-left to bottom-right: \)
+      // Walk down-right from center
       for (
         let i = x + 1, j = y + 1, index = centerIndex + 1;
         i <= maxX && j <= maxY;
@@ -454,6 +485,7 @@ export class AlphaBetaGomokuAI {
       ) {
         row[index] = board[i][j];
       }
+      // Walk up-left from center
       for (
         let i = x - 1, j = y - 1, index = centerIndex - 1;
         i >= minX && j >= minY;
@@ -462,7 +494,8 @@ export class AlphaBetaGomokuAI {
         row[index] = board[i][j];
       }
     } else if (direction === "diagonal2") {
-      // Walk diagonally (bottom-left to top-right)
+      // Extract diagonal line (bottom-left to top-right: /)
+      // Walk up-right from center
       for (
         let i = x + 1, j = y - 1, index = centerIndex + 1;
         i <= maxX && j >= minY;
@@ -470,6 +503,7 @@ export class AlphaBetaGomokuAI {
       ) {
         row[index] = board[i][j];
       }
+      // Walk down-left from center
       for (
         let i = x - 1, j = y + 1, index = centerIndex - 1;
         i >= minX && j <= maxY;
@@ -479,7 +513,7 @@ export class AlphaBetaGomokuAI {
       }
     }
 
-    return row;
+    return row; // Return 1D representation of the line for threat analysis
   }
 
   /**
@@ -607,8 +641,15 @@ export class AlphaBetaGomokuAI {
 
   /**
    * Calculate combination threat scores (from C implementation)
+   * When threats intersect at a position, they create powerful combinations
+   * These are often decisive in Gomoku (like fork attacks)
+   *
+   * @param one - First threat type
+   * @param two - Second threat type
+   * @returns Bonus score for the combination (0 if no special combination)
    */
   private calculateCombinationThreat(one: ThreatType, two: ThreatType): number {
+    // THREE + FOUR combination = very powerful (opponent can't block both)
     if (
       (one === ThreatType.THREAT_THREE &&
         (two === ThreatType.THREAT_FOUR ||
@@ -617,14 +658,17 @@ export class AlphaBetaGomokuAI {
         (one === ThreatType.THREAT_FOUR ||
           one === ThreatType.THREAT_FOUR_BROKEN))
     ) {
-      return this.threatCost[ThreatType.THREAT_THREE_AND_FOUR];
-    } else if (
+      return this.threatCost[ThreatType.THREAT_THREE_AND_FOUR]; // Major bonus
+    }
+    // THREE + THREE combination = fork attack (opponent can only block one)
+    else if (
       one === ThreatType.THREAT_THREE &&
       two === ThreatType.THREAT_THREE
     ) {
-      return this.threatCost[ThreatType.THREAT_THREE_AND_THREE];
+      return this.threatCost[ThreatType.THREAT_THREE_AND_THREE]; // Good bonus
     }
-    return 0;
+
+    return 0; // No special combination bonus
   }
 
   /**
@@ -672,7 +716,7 @@ export class AlphaBetaGomokuAI {
   /**
    * Check if a position has neighboring stones (within 1 square distance)
    * Used to limit move generation to relevant areas of the board
-   * 
+   *
    * @param board - Current board state
    * @param row - Row to check
    * @param col - Column to check
@@ -680,13 +724,15 @@ export class AlphaBetaGomokuAI {
    */
   private hasNeighbor(board: CellType[][], row: number, col: number): boolean {
     // Check all 8 adjacent squares (including diagonals)
-    for (let dr = -1; dr <= 1; dr++) {      // Row offset: -1, 0, 1
-      for (let dc = -1; dc <= 1; dc++) {    // Column offset: -1, 0, 1
+    for (let dr = -1; dr <= 1; dr++) {
+      // Row offset: -1, 0, 1
+      for (let dc = -1; dc <= 1; dc++) {
+        // Column offset: -1, 0, 1
         if (dr === 0 && dc === 0) continue; // Skip the center position itself
-        
-        const nr = row + dr;                 // Neighbor row coordinate
-        const nc = col + dc;                 // Neighbor column coordinate
-        
+
+        const nr = row + dr; // Neighbor row coordinate
+        const nc = col + dc; // Neighbor column coordinate
+
         // Check if neighbor is within board bounds
         if (
           nr >= 0 &&
@@ -705,61 +751,80 @@ export class AlphaBetaGomokuAI {
   }
 
   /**
-   * Check if board is empty
+   * Check if board is completely empty (no stones placed)
+   * Used to determine optimal opening move placement
+   *
+   * @param board - Current board state to check
+   * @returns true if no stones are placed anywhere on the board
    */
   private isBoardEmpty(board: CellType[][]): boolean {
     for (let i = 0; i < this.BOARD_SIZE; i++) {
       for (let j = 0; j < this.BOARD_SIZE; j++) {
         if (board[i][j] !== CellType.EMPTY) {
-          return false;
+          return false; // Found a stone, board is not empty
         }
       }
     }
-    return true;
+    return true; // No stones found, board is empty
   }
 
   /**
-   * Check if game is over (someone won or board full)
+   * Check if game is over (terminal node in search tree)
+   * Used by alpha-beta search to identify leaf nodes
+   *
+   * @param board - Current board state
+   * @returns true if game has ended (win or draw)
    */
   private isGameOver(board: CellType[][]): boolean {
-    // Check for wins or full board
+    // Game ends when someone wins OR board is completely full
     return this.checkForWin(board) !== null || this.isBoardFull(board);
   }
 
   /**
-   * Check if board is full
+   * Check if board is completely full (all positions occupied)
+   * Used to detect draw conditions
+   *
+   * @param board - Current board state
+   * @returns true if no empty positions remain
    */
   private isBoardFull(board: CellType[][]): boolean {
     for (let i = 0; i < this.BOARD_SIZE; i++) {
       for (let j = 0; j < this.BOARD_SIZE; j++) {
         if (board[i][j] === CellType.EMPTY) {
-          return false;
+          return false; // Found empty position, board not full
         }
       }
     }
-    return true;
+    return true; // No empty positions found, board is full
   }
 
   /**
-   * Check for win condition
+   * Check for win condition (5 or more stones in a row)
+   * Searches all positions and directions for winning patterns
+   *
+   * @param board - Current board state to analyze
+   * @returns CellType of winner (BLACK/WHITE) or null if no winner
    */
   private checkForWin(board: CellType[][]): CellType | null {
+    // Four directions to check: horizontal, vertical, and both diagonals
     const directions = [
-      [0, 1],
-      [1, 0],
-      [1, 1],
-      [1, -1],
+      [0, 1], // Horizontal (left-right)
+      [1, 0], // Vertical (up-down)
+      [1, 1], // Diagonal (top-left to bottom-right)
+      [1, -1], // Diagonal (top-right to bottom-left)
     ];
 
+    // Check every position as potential start of winning sequence
     for (let i = 0; i < this.BOARD_SIZE; i++) {
       for (let j = 0; j < this.BOARD_SIZE; j++) {
         const cell = board[i][j];
-        if (cell === CellType.EMPTY) continue;
+        if (cell === CellType.EMPTY) continue; // Skip empty positions
 
+        // Check each direction from this position
         for (const [dx, dy] of directions) {
-          let count = 1;
+          let count = 1; // Count starts at 1 for current position
 
-          // Check positive direction
+          // Count stones in positive direction
           let x = i + dx,
             y = j + dy;
           while (
@@ -774,7 +839,7 @@ export class AlphaBetaGomokuAI {
             y += dy;
           }
 
-          // Check negative direction
+          // Count stones in negative direction
           x = i - dx;
           y = j - dy;
           while (
@@ -789,25 +854,31 @@ export class AlphaBetaGomokuAI {
             y -= dy;
           }
 
+          // Check if we found 5 or more in a row
           if (count >= 5) {
-            return cell;
+            return cell; // Return winner (BLACK or WHITE)
           }
         }
       }
     }
 
-    return null;
+    return null; // No winner found
   }
 
   /**
-   * Convert external board format to internal representation
+   * Convert external Player board to internal CellType board
+   * Transforms the React component's string-based board representation
+   * into the AI's numeric representation for faster processing
+   *
+   * @param board - External board using "black"/"white"/null
+   * @returns Internal board using numeric CellType values
    */
   private convertToInternalBoard(board: Player[][]): CellType[][] {
     return board.map((row) =>
       row.map((cell) => {
-        if (cell === "black") return CellType.BLACK;
-        if (cell === "white") return CellType.WHITE;
-        return CellType.EMPTY;
+        if (cell === "black") return CellType.BLACK; // Convert to 1
+        if (cell === "white") return CellType.WHITE; // Convert to -1
+        return CellType.EMPTY; // Convert to 0
       })
     );
   }

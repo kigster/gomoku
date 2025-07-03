@@ -1,5 +1,5 @@
 class Api::V1::AuthController < Api::V1::BaseController
-  skip_before_action :authenticate_user!, only: [ :login, :oauth, :register ]
+  skip_before_action :authenticate_user!, only: %i[login oauth register]
 
   # POST /api/v1/auth/login
   def login

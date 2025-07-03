@@ -1,12 +1,22 @@
 class Api::V1::BaseController < ApplicationController
+  class << self
+    def inherited(subclass)
+      subclass.instance_eval do
+        no_login_required = []
+        %i[index show].each do |action|
+          no_login_required << action if subclass.new.respond_to?(action)
+        end
+        before_action :authenticate_user!, except: no_login_required
+        skip_before_action :verify_authenticity_token
+      end
+    end
+  end
+
   # Skip CSRF for API endpoints
-  skip_before_action :verify_authenticity_token
 
   # Handle CORS
   before_action :set_cors_headers
 
-  # Authentication
-  before_action :authenticate_user!, except: [ :index, :show ]
   before_action :configure_permitted_parameters, if: :devise_controller?
 
   # JSON responses

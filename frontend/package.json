@@ -21,7 +21,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "kill": "ps -ef | grep react-scrip[t] | awk '{print $2}' | xargs kill",
+    "start": "PORT=${PORT_REACT:-7000} react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --watchAll=false",
     "test:watch": "react-scripts test",
