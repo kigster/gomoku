@@ -1,0 +1,30 @@
+{
+  "validUser": {
+    "name": "Test User",
+    "username": "testuser123",
+    "email": "testuser@example.com",
+    "password": "SecurePassword123!",
+    "password_confirmation": "SecurePassword123!"
+  },
+  "validUser2": {
+    "name": "Jane Doe",
+    "username": "janedoe456",
+    "email": "jane.doe@example.com",
+    "password": "JanePassword456!",
+    "password_confirmation": "JanePassword456!"
+  },
+  "invalidUser": {
+    "name": "",
+    "username": "test",
+    "email": "invalid-email",
+    "password": "123",
+    "password_confirmation": "456"
+  },
+  "existingUser": {
+    "name": "Existing User",
+    "username": "existing",
+    "email": "existing@example.com",
+    "password": "ExistingPassword123!",
+    "password_confirmation": "ExistingPassword123!"
+  }
+} 

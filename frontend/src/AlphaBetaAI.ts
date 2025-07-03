@@ -230,7 +230,7 @@ export class AlphaBetaGomokuAI {
     // Base case: reached search depth limit or game is over
     if (depth === 0 || this.isGameOver(board)) {
       return {
-        score: this.evaluateBoard(board), // Evaluate current position
+        score: this.evaluateBoard(board, isMaximizingPlayer), // Evaluate from current player's perspective
         bestMove: null, // No move to return at leaf nodes
       };
     }
@@ -304,10 +304,13 @@ export class AlphaBetaGomokuAI {
 
   /**
    * Board evaluation function based on C heuristics
-   * Evaluates how good the current position is for the AI
-   * Positive scores favor AI, negative scores favor opponent
+   * Evaluates how good the current position is from the current player's perspective
+   * 
+   * @param board - Current board state
+   * @param isMaximizingPlayer - true if evaluating from AI's perspective, false for human's perspective
+   * @returns Evaluation score (positive = good for current player, negative = bad)
    */
-  private evaluateBoard(board: CellType[][]): number {
+  private evaluateBoard(board: CellType[][], isMaximizingPlayer: boolean): number {
     let aiScore = 0; // Total threat value for AI
     let humanScore = 0; // Total threat value for human
 
@@ -325,9 +328,35 @@ export class AlphaBetaGomokuAI {
       }
     }
 
-    // Weight AI moves higher (1.5x) to encourage aggressive play
-    // This makes the AI slightly favor attacking over pure defense
-    return 1.5 * aiScore - humanScore;
+    // **CRITICAL FIX**: Check for immediate threats that must be addressed
+    const immediateAIThreat = this.findImmediateThreat(board, this.aiPlayer);
+    const immediateHumanThreat = this.findImmediateThreat(board, this.humanPlayer);
+
+    // Immediate threats get MASSIVE priority (100,000+ points)
+    let immediateBonus = 0;
+    if (immediateAIThreat !== null) {
+      immediateBonus += 100000; // AI can win - highest priority
+      console.log("🏆 AI found winning threat at:", immediateAIThreat);
+    }
+    if (immediateHumanThreat !== null) {
+      immediateBonus -= 100000; // Human can win - must defend immediately
+      console.log("🛡️ AI detected human threat, must defend at:", immediateHumanThreat);
+    }
+
+    // **TURN-AWARE EVALUATION**: Evaluate from current player's perspective
+    // This ensures proper threat assessment based on whose turn it is
+    let baseScore: number;
+    if (isMaximizingPlayer) {
+      // AI's turn: prioritize AI threats and defend against human threats
+      // Use aggressive weighting (1.5x) to encourage offensive play when no immediate threats
+      baseScore = 1.5 * aiScore - humanScore + immediateBonus;
+    } else {
+      // Human's turn: prioritize human threats and defend against AI threats
+      // From human's perspective, human score is positive, AI score is negative
+      baseScore = 1.5 * humanScore - aiScore - immediateBonus; // Note: subtract AI bonus for human perspective
+    }
+
+    return baseScore;
   }
 
   /**
@@ -672,9 +701,168 @@ export class AlphaBetaGomokuAI {
   }
 
   /**
+   * Find immediate threats that must be addressed this turn
+   * Scans for positions where a player can win on their next move
+   * Also detects "four-threats" that create unstoppable winning sequences
+   * 
+   * @param board - Current board state
+   * @param player - Player to check threats for
+   * @returns Position of immediate threat or null if none found
+   */
+  private findImmediateThreat(board: CellType[][], player: CellType): { row: number, col: number } | null {
+    // First priority: Direct wins (placing a stone creates 5 in a row)
+    for (let i = 0; i < this.BOARD_SIZE; i++) {
+      for (let j = 0; j < this.BOARD_SIZE; j++) {
+        if (board[i][j] === CellType.EMPTY) {
+          // Temporarily place player's stone to test if it creates a win
+          board[i][j] = player;
+          
+          // Check if this move would create 5+ in a row (immediate win)
+          if (this.checkWinAt(board, player, i, j)) {
+            board[i][j] = CellType.EMPTY; // Undo the test move
+            return { row: i, col: j }; // Found an immediate threat
+          }
+          
+          board[i][j] = CellType.EMPTY; // Undo the test move
+        }
+      }
+    }
+
+    // Second priority: Four-threats (patterns like _XXXX that create unstoppable wins)
+    for (let i = 0; i < this.BOARD_SIZE; i++) {
+      for (let j = 0; j < this.BOARD_SIZE; j++) {
+        if (board[i][j] === CellType.EMPTY) {
+          // Check if this position would create a "straight four" (open on both ends)
+          // or other critical four-patterns that need immediate response
+          if (this.checkCriticalFourThreat(board, player, i, j)) {
+            return { row: i, col: j }; // Found a critical four-threat
+          }
+        }
+      }
+    }
+    
+    return null; // No immediate threats found
+  }
+
+  /**
+   * Check if placing a stone creates a critical four-threat that needs immediate response
+   * Detects patterns like _XXXX_ (straight four) that guarantee a win next turn
+   * 
+   * @param board - Current board state
+   * @param player - Player to check threats for  
+   * @param row - Row to test
+   * @param col - Column to test
+   * @returns true if this creates a critical four-threat
+   */
+  private checkCriticalFourThreat(board: CellType[][], player: CellType, row: number, col: number): boolean {
+    // Temporarily place the stone
+    board[row][col] = player;
+    
+    // Check all directions for critical four patterns
+    const directions = [
+      [0, 1],   // Horizontal
+      [1, 0],   // Vertical  
+      [1, 1],   // Diagonal \
+      [1, -1]   // Diagonal /
+    ];
+
+    for (const [dx, dy] of directions) {
+      let count = 1; // Count the stone we just placed
+      let leftOpen = false;  // Space on left side
+      let rightOpen = false; // Space on right side
+
+      // Count in positive direction
+      let r = row + dx;
+      let c = col + dy;
+      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+        count++;
+        r += dx;
+        c += dy;
+      }
+      // Check if there's an open space after the sequence
+      if (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === CellType.EMPTY) {
+        rightOpen = true;
+      }
+
+      // Count in negative direction  
+      r = row - dx;
+      c = col - dy;
+      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+        count++;
+        r -= dx;
+        c -= dy;
+      }
+      // Check if there's an open space before the sequence
+      if (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === CellType.EMPTY) {
+        leftOpen = true;
+      }
+
+      // Critical patterns that need immediate response:
+      // 1. Four in a row with space on both ends (_XXXX_) = unstoppable
+      // 2. Four in a row with space on one end (XXXX_) = strong threat
+      if (count >= 4 && (leftOpen || rightOpen)) {
+        board[row][col] = CellType.EMPTY; // Undo test move
+        return true; // Found critical four-threat
+      }
+    }
+
+    board[row][col] = CellType.EMPTY; // Undo test move
+    return false;
+  }
+
+  /**
+   * Check if placing a stone at a specific position creates a win
+   * 
+   * @param board - Current board state
+   * @param player - Player who placed the stone
+   * @param row - Row where stone was placed
+   * @param col - Column where stone was placed
+   * @returns true if this creates 5+ in a row
+   */
+  private checkWinAt(board: CellType[][], player: CellType, row: number, col: number): boolean {
+    // Check all four directions from the placed stone
+    const directions = [
+      [0, 1],   // Horizontal
+      [1, 0],   // Vertical  
+      [1, 1],   // Diagonal \
+      [1, -1]   // Diagonal /
+    ];
+
+    for (const [dx, dy] of directions) {
+      let count = 1; // Count the stone we just placed
+
+      // Count in positive direction
+      let r = row + dx;
+      let c = col + dy;
+      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+        count++;
+        r += dx;
+        c += dy;
+      }
+
+      // Count in negative direction
+      r = row - dx;
+      c = col - dy;
+      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+        count++;
+        r -= dx;
+        c -= dy;
+      }
+
+      // Check if we have 5 or more in a row
+      if (count >= this.NEED_TO_WIN) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Generate possible moves with smart ordering for better alpha-beta pruning
    * Only considers moves near existing stones to reduce search space
    * Orders moves by evaluation score to improve pruning efficiency
+   * Prioritizes defensive moves when immediate threats are detected
    */
   private generateMoves(board: CellType[][]): Move[] {
     const moves: Move[] = [];
@@ -690,12 +878,39 @@ export class AlphaBetaGomokuAI {
       return [{ row: centerX, col: centerY, score: 0 }];
     }
 
-    // Generate moves only near existing stones
+    // **PRIORITY DEFENSIVE MOVES**: Check for immediate threats first
+    const immediateHumanThreat = this.findImmediateThreat(board, this.humanPlayer);
+    const immediateAIThreat = this.findImmediateThreat(board, this.aiPlayer);
+    
+    // If there's an immediate threat, prioritize those positions
+    if (immediateHumanThreat) {
+      console.log("🛡️ Prioritizing defense at:", immediateHumanThreat);
+      moves.push({ 
+        row: immediateHumanThreat.row, 
+        col: immediateHumanThreat.col, 
+        score: 200000 // Massive priority for defensive moves
+      });
+    }
+    
+    if (immediateAIThreat) {
+      console.log("🏆 Prioritizing winning move at:", immediateAIThreat);
+      moves.push({ 
+        row: immediateAIThreat.row, 
+        col: immediateAIThreat.col, 
+        score: 300000 // Even higher priority for winning moves
+      });
+    }
+
+    // Generate other moves near existing stones
     // This greatly reduces the search space while maintaining move quality
     for (let i = 0; i < this.BOARD_SIZE; i++) {
       for (let j = 0; j < this.BOARD_SIZE; j++) {
         // Only consider empty positions that have neighboring stones
         if (board[i][j] === CellType.EMPTY && this.hasNeighbor(board, i, j)) {
+          // Skip if this move is already added as a priority move
+          const isAlreadyAdded = moves.some(move => move.row === i && move.col === j);
+          if (isAlreadyAdded) continue;
+          
           // Calculate preliminary score for move ordering
           // Better moves will be searched first, improving alpha-beta pruning
           const score = this.calculateScoreAt(board, this.aiPlayer, i, j);
@@ -709,7 +924,7 @@ export class AlphaBetaGomokuAI {
     moves.sort((a, b) => b.score - a.score);
 
     // Limit number of moves to keep search tractable
-    // Top 20 moves usually contain the best options
+    // Top 20 moves usually contain the best options (priority moves are always included)
     return moves.slice(0, 20);
   }
 

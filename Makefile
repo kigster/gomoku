@@ -175,6 +175,9 @@ status: ## Show status of development servers
 	@lsof -i :3000 >/dev/null 2>&1 && echo "  ✅ Port 3000 (Frontend) - In use" || echo "  ⚪ Port 3000 (Frontend) - Available"
 	@lsof -i :3001 >/dev/null 2>&1 && echo "  ✅ Port 3001 (Backend) - In use" || echo "  ⚪ Port 3001 (Backend) - Available"
 
+kill-dev: ## Kill local development processes 
+	@bash -c 'ps -ef | grep -E "[p]uma|[y]arn|[n]ode" | grep -v Cursor | grep gomoku | awk "{print $$2}" | xargs kill -9'
+
 # Development Workflow Shortcuts
 restart: stop start ## Restart both development servers
 

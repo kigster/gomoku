@@ -24,8 +24,11 @@ module Gomoku
   class Application < Rails::Application
 
     # TCP/IP port to listen on
-    PORT = ENV.fetch('PORT_RAILS', 3000).to_i
+    PORT = ENV.fetch('PORT_RAILS', 3001).to_i
     HOST = ENV.fetch('HOST_RAILS', "localhost")
+
+    # Port for React frontend (what needs CORS access)
+    FRONTEND_PORT = ENV.fetch('PORT_REACT', 3000).to_i
 
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
@@ -33,10 +36,10 @@ module Gomoku
     # API-only application configuration
     config.api_only = true
 
-    # CORS configuration
+    # CORS configuration - Allow React frontend to access Rails backend
     config.middleware.insert_before 0, Rack::Cors do
       allow do
-        origins "http://#{HOST}:#{PORT}", "http://#{HOST}:#{PORT + 1}"
+        origins "http://#{HOST}:#{FRONTEND_PORT}", "http://#{HOST}:3002"
         resource "*",
           headers: :any,
           methods: [ :get, :post, :put, :patch, :delete, :options, :head ],

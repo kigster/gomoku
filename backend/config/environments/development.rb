@@ -39,8 +39,8 @@ Rails.application.configure do
 
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { 
-    host: Gomoku::Application::HOST_RAILS, 
-    port: Gomoku::Application::PORT_RAILS
+    host: Gomoku::Application::HOST, 
+    port: Gomoku::Application::PORT
   }
 
   # Print deprecation notices to the Rails logger.

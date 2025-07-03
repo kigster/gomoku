@@ -1,0 +1,26 @@
+{
+  "name": "gomoku-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end integration tests for Gomoku game using Cypress",
+  "private": true,
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "npm run test:setup && npm run cypress:run",
+    "test:e2e:open": "npm run test:setup && npm run cypress:open",
+    "test:setup": "node scripts/setup-test-environment.js",
+    "test:teardown": "node scripts/teardown-test-environment.js",
+    "test:servers:start": "node scripts/start-test-servers.js",
+    "test:servers:stop": "node scripts/stop-test-servers.js",
+    "test:db:reset": "cd ../backend && RAILS_ENV=test bundle exec rails db:drop db:create db:migrate db:seed"
+  },
+  "devDependencies": {
+    "cypress": "^13.6.0",
+    "wait-on": "^7.2.0",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+} 
