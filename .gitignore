@@ -35,6 +35,6 @@ backend/config/master.key
 backend/app/assets/builds/*
 backend!/app/assets/builds/.keep
 
-frontend/node_modules
+**/node_modules
 
 **/.DS_Store

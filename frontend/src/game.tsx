@@ -1,16 +1,16 @@
 // React and UI imports
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
-  User,        // Profile icon
-  RefreshCw,   // Reset/restart icon  
-  Trophy,      // Victory icon
-  Clock,       // Timer/thinking icon
-  Undo,        // Undo move icon
-  Brain,       // Medium AI difficulty icon
-  Sparkles,    // Easy AI difficulty icon
-  Zap,         // Hard AI difficulty icon
-  LogIn,       // Login button icon
-  LogOut,      // Logout button icon
+  User, // Profile icon
+  RefreshCw, // Reset/restart icon
+  Trophy, // Victory icon
+  Clock, // Timer/thinking icon
+  Undo, // Undo move icon
+  Brain, // Medium AI difficulty icon
+  Sparkles, // Easy AI difficulty icon
+  Zap, // Hard AI difficulty icon
+  LogIn, // Login button icon
+  LogOut, // Logout button icon
   ChevronDown, // Dropdown menu icon
 } from "lucide-react";
 
@@ -49,23 +49,23 @@ type Difficulty = "easy" | "medium" | "hard";
  * Represents a single move in the game
  */
 interface Move {
-  row: number;        // Board row (0-18)
-  col: number;        // Board column (0-18)
-  player: Player;     // Who made this move
-  timestamp: number;  // When the move was made (for replay/analysis)
+  row: number; // Board row (0-18)
+  col: number; // Board column (0-18)
+  player: Player; // Who made this move
+  timestamp: number; // When the move was made (for replay/analysis)
 }
 
 /**
  * Complete game state - all information needed to represent current game
  */
 interface GameState {
-  board: Player[][];                    // 19x19 grid of stones/empty spaces
-  currentPlayer: Player;                // Whose turn it is
-  status: GameStatus;                   // Current game phase
-  winner: Player;                       // Who won (null if game ongoing)
-  moveCount: number;                    // Total moves played
-  moveHistory: Move[];                  // Complete move sequence for undo/replay
-  lastMove: Move | null;                // Most recent move for highlighting
+  board: Player[][]; // 19x19 grid of stones/empty spaces
+  currentPlayer: Player; // Whose turn it is
+  status: GameStatus; // Current game phase
+  winner: Player; // Who won (null if game ongoing)
+  moveCount: number; // Total moves played
+  moveHistory: Move[]; // Complete move sequence for undo/replay
+  lastMove: Move | null; // Most recent move for highlighting
   winningLine: [number, number][] | null; // Coordinates of winning 5-in-a-row
 }
 
@@ -73,9 +73,9 @@ interface GameState {
  * Player statistics for wins/losses tracking
  */
 interface GameStats {
-  wins: number;   // Games won
-  losses: number; // Games lost  
-  draws: number;  // Games drawn
+  wins: number; // Games won
+  losses: number; // Games lost
+  draws: number; // Games drawn
 }
 
 /**
@@ -92,9 +92,9 @@ interface User {
  */
 interface CellState {
   isAnimating: boolean; // Currently playing place/undo animation
-  isNew: boolean;       // Just placed (triggers bounce animation)
-  isUndoing: boolean;   // Being removed (triggers fade-out animation)
-  isHovered: boolean;   // Mouse hovering over cell (shows preview stone)
+  isNew: boolean; // Just placed (triggers bounce animation)
+  isUndoing: boolean; // Being removed (triggers fade-out animation)
+  isHovered: boolean; // Mouse hovering over cell (shows preview stone)
 }
 
 // ==================== GLOBAL AI STATE ====================
@@ -118,9 +118,8 @@ let currentAIDifficulty: Difficulty | null = null;
  * Handles game logic, AI opponent, authentication, and UI state
  */
 const GomokuGame: React.FC = () => {
-  
   // ==================== GAME STATE ====================
-  
+
   /**
    * Core game state - the authoritative source of truth for the current game
    * Contains board position, move history, game status, and win conditions
@@ -129,17 +128,17 @@ const GomokuGame: React.FC = () => {
     board: Array(19)
       .fill(null)
       .map(() => Array(19).fill(null)), // Initialize empty 19x19 board
-    currentPlayer: "black",              // Human always plays first (black stones)
-    status: "playing",                   // Game starts in progress
-    winner: null,                        // No winner initially
-    moveCount: 0,                        // Track total moves for game analysis
-    moveHistory: [],                     // Complete move sequence for undo/replay
-    lastMove: null,                      // Used for visual highlighting
-    winningLine: null,                   // Store winning line coordinates for animation
+    currentPlayer: "black", // Human always plays first (black stones)
+    status: "playing", // Game starts in progress
+    winner: null, // No winner initially
+    moveCount: 0, // Track total moves for game analysis
+    moveHistory: [], // Complete move sequence for undo/replay
+    lastMove: null, // Used for visual highlighting
+    winningLine: null, // Store winning line coordinates for animation
   });
 
   // ==================== UI ANIMATION STATE ====================
-  
+
   /**
    * Per-cell animation states for smooth visual feedback
    * Parallel array to game board tracking visual state of each cell
@@ -152,34 +151,34 @@ const GomokuGame: React.FC = () => {
           .fill(null)
           .map(() => ({
             isAnimating: false, // Not currently animating
-            isNew: false,       // Not newly placed
-            isUndoing: false,   // Not being removed
-            isHovered: false,   // Not hovered by mouse
+            isNew: false, // Not newly placed
+            isUndoing: false, // Not being removed
+            isHovered: false, // Not hovered by mouse
           }))
       )
   );
 
   // ==================== INTERACTION STATE ====================
-  
+
   /**
    * Currently hovered cell coordinates for preview stone display
    * null when no cell is hovered
    */
   const [hoveredCell, setHoveredCell] = useState<[number, number] | null>(null);
-  
+
   /**
    * AI thinking indicators for user feedback
    */
-  const [isThinking, setIsThinking] = useState(false);      // General AI thinking state
+  const [isThinking, setIsThinking] = useState(false); // General AI thinking state
   const [isDeepThinking, setIsDeepThinking] = useState(false); // Hard mode deep analysis
-  
+
   /**
    * Victory animation trigger - shows celebration overlay
    */
   const [showVictoryAnimation, setShowVictoryAnimation] = useState(false);
 
   // ==================== AUTHENTICATION STATE ====================
-  
+
   /**
    * Current authenticated user (null if guest play)
    * Loaded from localStorage on component mount
@@ -187,31 +186,31 @@ const GomokuGame: React.FC = () => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(
     authService.getCurrentUser()
   );
-  
+
   /**
    * Authentication modal visibility control
    */
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  
+
   /**
    * User profile dropdown menu visibility
    */
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   // ==================== LOCAL USER STATE ====================
-  
+
   /**
    * Guest player statistics (stored in component state only)
    * Used when playing without authentication
    */
   const [guestStats, setGuestStats] = useState({
-    wins: 0,    // Games won as guest
-    losses: 0,  // Games lost as guest
-    draws: 0,   // Games drawn as guest
+    wins: 0, // Games won as guest
+    losses: 0, // Games lost as guest
+    draws: 0, // Games drawn as guest
   });
 
   // ==================== AI CONFIGURATION ====================
-  
+
   /**
    * Current AI difficulty setting
    * Controls search depth and thinking time
@@ -219,13 +218,13 @@ const GomokuGame: React.FC = () => {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
   // ==================== REFS FOR PERFORMANCE ====================
-  
+
   /**
    * Reference to board DOM element for potential future use
    * (click handling, measurements, etc.)
    */
   const boardRef = useRef<HTMLDivElement>(null);
-  
+
   /**
    * Prevents multiple simultaneous AI move calculations
    * Critical for preventing race conditions in AI processing
@@ -237,10 +236,10 @@ const GomokuGame: React.FC = () => {
   /**
    * Win detection algorithm with line tracking for visual effects
    * Checks all four directions from a placed stone to find 5+ in a row
-   * 
+   *
    * @param board - Current board state to analyze
    * @param row - Row of the newly placed stone
-   * @param col - Column of the newly placed stone  
+   * @param col - Column of the newly placed stone
    * @param player - Player who placed the stone
    * @returns Object with win status and winning line coordinates
    */
@@ -253,9 +252,9 @@ const GomokuGame: React.FC = () => {
     ): { hasWin: boolean; line: [number, number][] | null } => {
       // Four directions to check: horizontal, vertical, and both diagonals
       const directions = [
-        [0, 1],  // Horizontal (left-right)
-        [1, 0],  // Vertical (up-down)
-        [1, 1],  // Diagonal (top-left to bottom-right)
+        [0, 1], // Horizontal (left-right)
+        [1, 0], // Vertical (up-down)
+        [1, 1], // Diagonal (top-left to bottom-right)
         [1, -1], // Diagonal (top-right to bottom-left)
       ];
 
@@ -297,7 +296,7 @@ const GomokuGame: React.FC = () => {
   /**
    * Animate stone placement or removal with visual feedback
    * Triggers CSS animations through state changes
-   * 
+   *
    * @param row - Board row coordinate
    * @param col - Board column coordinate
    * @param animationType - Type of animation to play
@@ -309,9 +308,9 @@ const GomokuGame: React.FC = () => {
         const newStates = prev.map((r) => r.map((c) => ({ ...c })));
         if (animationType === "place") {
           newStates[row][col].isAnimating = true; // Trigger place animation
-          newStates[row][col].isNew = true;       // Mark as newly placed
+          newStates[row][col].isNew = true; // Mark as newly placed
         } else {
-          newStates[row][col].isUndoing = true;   // Trigger undo animation
+          newStates[row][col].isUndoing = true; // Trigger undo animation
         }
         return newStates;
       });
@@ -336,7 +335,7 @@ const GomokuGame: React.FC = () => {
   /**
    * Handle human player move (black stones only)
    * This is the main entry point for player interactions with the board
-   * 
+   *
    * @param row - Target row for stone placement (0-18)
    * @param col - Target column for stone placement (0-18)
    */
@@ -345,10 +344,10 @@ const GomokuGame: React.FC = () => {
       // ===== MOVE VALIDATION =====
       // Prevent invalid moves in various scenarios
       if (
-        gameState.board[row][col] !== null ||   // Cell already occupied
-        gameState.status !== "playing" ||       // Game not in progress
-        isThinking ||                           // AI is currently thinking
-        gameState.currentPlayer !== "black"     // Not human player's turn
+        gameState.board[row][col] !== null || // Cell already occupied
+        gameState.status !== "playing" || // Game not in progress
+        isThinking || // AI is currently thinking
+        gameState.currentPlayer !== "black" // Not human player's turn
       ) {
         return; // Early exit for invalid moves
       }
@@ -356,7 +355,7 @@ const GomokuGame: React.FC = () => {
       // ===== BOARD STATE UPDATE =====
       // Create new board state with the move applied
       const newBoard = gameState.board.map((r) => [...r]); // Deep copy board
-      newBoard[row][col] = gameState.currentPlayer;        // Place the stone
+      newBoard[row][col] = gameState.currentPlayer; // Place the stone
 
       // ===== WIN CONDITION CHECKING =====
       const winCheck = checkWin(newBoard, row, col, gameState.currentPlayer);
@@ -366,10 +365,10 @@ const GomokuGame: React.FC = () => {
 
       // ===== MOVE RECORD CREATION =====
       const move: Move = {
-        row,                              // Board coordinates
+        row, // Board coordinates
         col,
-        player: gameState.currentPlayer,  // Who made the move
-        timestamp: Date.now(),            // When move was made
+        player: gameState.currentPlayer, // Who made the move
+        timestamp: Date.now(), // When move was made
       };
 
       // ===== VISUAL ANIMATION =====
@@ -382,17 +381,17 @@ const GomokuGame: React.FC = () => {
         // Switch players unless game ended
         currentPlayer:
           winCheck.hasWin || isBoardFull
-            ? prev.currentPlayer      // Keep current player if game ended
+            ? prev.currentPlayer // Keep current player if game ended
             : prev.currentPlayer === "black"
-            ? "white"                 // Switch to AI
-            : "black",                // Switch to human (shouldn't happen here)
+            ? "white" // Switch to AI
+            : "black", // Switch to human (shouldn't happen here)
         // Update game status based on outcome
         status: winCheck.hasWin ? "won" : isBoardFull ? "draw" : "playing",
         winner: winCheck.hasWin ? prev.currentPlayer : null,
-        moveCount: prev.moveCount + 1,           // Increment move counter
+        moveCount: prev.moveCount + 1, // Increment move counter
         moveHistory: [...prev.moveHistory, move], // Add move to history
-        lastMove: move,                          // Track for highlighting
-        winningLine: winCheck.line,              // Store winning line for animation
+        lastMove: move, // Track for highlighting
+        winningLine: winCheck.line, // Store winning line for animation
       }));
 
       // ===== VICTORY CELEBRATION =====
@@ -437,17 +436,17 @@ const GomokuGame: React.FC = () => {
   const undoLastMove = useCallback(() => {
     // ===== UNDO VALIDATION =====
     if (
-      gameState.moveHistory.length === 0 ||  // No moves to undo
-      gameState.status !== "playing" ||      // Game not in progress
-      isThinking                             // AI currently thinking
+      gameState.moveHistory.length === 0 || // No moves to undo
+      gameState.status !== "playing" || // Game not in progress
+      isThinking // AI currently thinking
     ) {
       return; // Early exit if undo not allowed
     }
 
     // ===== MOVE HISTORY ANALYSIS =====
-    const lastMove = gameState.moveHistory[gameState.moveHistory.length - 1];     // Most recent move
+    const lastMove = gameState.moveHistory[gameState.moveHistory.length - 1]; // Most recent move
     const secondLastMove =
-      gameState.moveHistory[gameState.moveHistory.length - 2];                   // Second most recent move
+      gameState.moveHistory[gameState.moveHistory.length - 2]; // Second most recent move
 
     // ===== SMART UNDO LOGIC =====
     // Only allow undo when it's human's turn (after AI has moved)
@@ -455,7 +454,7 @@ const GomokuGame: React.FC = () => {
     if (lastMove.player === "white") {
       // ===== BOARD STATE RESTORATION =====
       const newBoard = gameState.board.map((r) => [...r]); // Deep copy current board
-      newBoard[lastMove.row][lastMove.col] = null;          // Remove AI's move
+      newBoard[lastMove.row][lastMove.col] = null; // Remove AI's move
 
       // ===== VISUAL FEEDBACK =====
       animateCell(lastMove.row, lastMove.col, "undo"); // Animate AI move removal
@@ -472,21 +471,21 @@ const GomokuGame: React.FC = () => {
         setGameState((prev) => ({
           ...prev,
           board: newBoard,
-          currentPlayer: "black",              // Always return to human's turn
-          status: "playing",                   // Reset to playing state
-          winner: null,                        // Clear any winner state
+          currentPlayer: "black", // Always return to human's turn
+          status: "playing", // Reset to playing state
+          winner: null, // Clear any winner state
           moveCount: Math.max(0, prev.moveCount - (secondLastMove ? 2 : 1)), // Reduce move count
-          moveHistory: prev.moveHistory.slice(0, secondLastMove ? -2 : -1),   // Remove undone moves
+          moveHistory: prev.moveHistory.slice(0, secondLastMove ? -2 : -1), // Remove undone moves
           // Find the new last move after undo
           lastMove:
             gameState.moveHistory[
               gameState.moveHistory.length - (secondLastMove ? 3 : 2)
             ] || null,
-          winningLine: null,                   // Clear any winning line
+          winningLine: null, // Clear any winning line
         }));
       }, 200); // Brief delay for animation synchronization
     }
-    // Note: If lastMove.player === "black", we don't allow undo because 
+    // Note: If lastMove.player === "black", we don't allow undo because
     // it would be the human's turn anyway, so no undo is needed
   }, [gameState, isThinking, animateCell]);
 
@@ -502,13 +501,13 @@ const GomokuGame: React.FC = () => {
     // ===== AI TURN DETECTION =====
     // Check if AI should make a move
     if (
-      gameState.currentPlayer === "white" &&  // AI plays white stones
-      gameState.status === "playing" &&       // Game is in progress
-      !aiProcessingRef.current                // Prevent concurrent AI processing
+      gameState.currentPlayer === "white" && // AI plays white stones
+      gameState.status === "playing" && // Game is in progress
+      !aiProcessingRef.current // Prevent concurrent AI processing
     ) {
       // ===== AI PROCESSING INITIALIZATION =====
       aiProcessingRef.current = true; // Set processing flag to prevent race conditions
-      setIsThinking(true);             // Show general thinking indicator
+      setIsThinking(true); // Show general thinking indicator
 
       // ===== DIFFICULTY-SPECIFIC UI FEEDBACK =====
       // Show special indicator for hard mode deep analysis
@@ -532,7 +531,7 @@ const GomokuGame: React.FC = () => {
         if (move) {
           // ===== BOARD STATE UPDATE =====
           const newBoard = gameState.board.map((r) => [...r]); // Deep copy board
-          newBoard[move[0]][move[1]] = "white";                 // Place AI stone
+          newBoard[move[0]][move[1]] = "white"; // Place AI stone
 
           // ===== GAME OUTCOME ANALYSIS =====
           const winCheck = checkWin(newBoard, move[0], move[1], "white");
@@ -542,10 +541,10 @@ const GomokuGame: React.FC = () => {
 
           // ===== MOVE RECORD CREATION =====
           const aiMove = {
-            row: move[0],                    // AI's move coordinates
+            row: move[0], // AI's move coordinates
             col: move[1],
-            player: "white" as Player,       // AI is always white
-            timestamp: Date.now(),           // When AI made the move
+            player: "white" as Player, // AI is always white
+            timestamp: Date.now(), // When AI made the move
           };
 
           // ===== VISUAL ANIMATION =====
@@ -559,10 +558,10 @@ const GomokuGame: React.FC = () => {
             currentPlayer: winCheck.hasWin || isBoardFull ? "white" : "black",
             status: winCheck.hasWin ? "won" : isBoardFull ? "draw" : "playing",
             winner: winCheck.hasWin ? "white" : null, // AI wins if win detected
-            moveCount: prev.moveCount + 1,            // Increment move counter
+            moveCount: prev.moveCount + 1, // Increment move counter
             moveHistory: [...prev.moveHistory, aiMove], // Add AI move to history
-            lastMove: aiMove,                         // Track for highlighting
-            winningLine: winCheck.line,               // Store winning line for animation
+            lastMove: aiMove, // Track for highlighting
+            winningLine: winCheck.line, // Store winning line for animation
           }));
 
           // ===== VICTORY CELEBRATION =====
@@ -595,25 +594,25 @@ const GomokuGame: React.FC = () => {
 
         // ===== CLEANUP AND STATE RESET =====
         aiProcessingRef.current = false; // Clear processing flag
-        setIsThinking(false);             // Hide thinking indicator
-        setIsDeepThinking(false);         // Hide deep thinking indicator
+        setIsThinking(false); // Hide thinking indicator
+        setIsDeepThinking(false); // Hide deep thinking indicator
       }, 50); // 50ms delay for UI responsiveness (allows thinking indicators to show)
 
       // ===== CLEANUP FUNCTION =====
       // Clean up if component unmounts or dependencies change during AI processing
       return () => {
-        clearTimeout(timer);              // Cancel pending AI move
-        aiProcessingRef.current = false;  // Reset processing flag
-        setIsDeepThinking(false);         // Clear deep thinking state
+        clearTimeout(timer); // Cancel pending AI move
+        aiProcessingRef.current = false; // Reset processing flag
+        setIsDeepThinking(false); // Clear deep thinking state
       };
     }
   }, [
     gameState.currentPlayer, // Trigger when player changes
-    gameState.status,        // Trigger when game status changes  
-    gameState.board,         // Trigger when board state changes
-    difficulty,              // Trigger when AI difficulty changes
-    checkWin,                // Stable function dependency
-    animateCell,             // Stable function dependency
+    gameState.status, // Trigger when game status changes
+    gameState.board, // Trigger when board state changes
+    difficulty, // Trigger when AI difficulty changes
+    checkWin, // Stable function dependency
+    animateCell, // Stable function dependency
   ]); // Note: Intentionally excluded isThinking to prevent infinite loops
 
   /**
@@ -626,13 +625,13 @@ const GomokuGame: React.FC = () => {
       board: Array(19)
         .fill(null)
         .map(() => Array(19).fill(null)), // Fresh empty 19x19 board
-      currentPlayer: "black",              // Human always starts first
-      status: "playing",                   // Ready for new game
-      winner: null,                        // No winner
-      moveCount: 0,                        // Reset move counter
-      moveHistory: [],                     // Clear all moves
-      lastMove: null,                      // No last move
-      winningLine: null,                   // No winning line
+      currentPlayer: "black", // Human always starts first
+      status: "playing", // Ready for new game
+      winner: null, // No winner
+      moveCount: 0, // Reset move counter
+      moveHistory: [], // Clear all moves
+      lastMove: null, // No last move
+      winningLine: null, // No winning line
     });
 
     // ===== RESET UI ANIMATION STATE =====
@@ -644,27 +643,27 @@ const GomokuGame: React.FC = () => {
             .fill(null)
             .map(() => ({
               isAnimating: false, // No animations
-              isNew: false,       // No new stones
-              isUndoing: false,   // No undo animations
-              isHovered: false,   // No hover states
+              isNew: false, // No new stones
+              isUndoing: false, // No undo animations
+              isHovered: false, // No hover states
             }))
         )
     );
 
     // ===== RESET VISUAL EFFECTS =====
     setShowVictoryAnimation(false); // Hide victory celebration
-    setIsDeepThinking(false);       // Clear AI thinking indicators
+    setIsDeepThinking(false); // Clear AI thinking indicators
 
     // ===== RESET AI STATE =====
     aiProcessingRef.current = false; // Clear processing flag
-    aiInstance = null;              // Force AI recreation for next game
-    currentAIDifficulty = null;     // Reset difficulty tracking
+    aiInstance = null; // Force AI recreation for next game
+    currentAIDifficulty = null; // Reset difficulty tracking
   }, []);
 
   /**
    * Handle mouse hover over board cells
    * Shows preview stone and manages hover animation states
-   * 
+   *
    * @param row - Cell row coordinate
    * @param col - Cell column coordinate
    * @param isHovering - Whether mouse is entering or leaving the cell
@@ -674,9 +673,9 @@ const GomokuGame: React.FC = () => {
       // ===== HOVER VALIDATION =====
       // Don't show hover effects in these conditions:
       if (
-        gameState.board[row][col] !== null ||  // Cell already occupied
-        gameState.status !== "playing" ||      // Game not in progress
-        isThinking                             // AI is thinking
+        gameState.board[row][col] !== null || // Cell already occupied
+        gameState.status !== "playing" || // Game not in progress
+        isThinking // AI is thinking
       ) {
         return; // Early exit - no hover feedback
       }
@@ -697,18 +696,19 @@ const GomokuGame: React.FC = () => {
   /**
    * Render individual board cell with stone, animations, and interactive effects
    * Creates the visual representation of each intersection on the game board
-   * 
+   *
    * @param row - Cell row coordinate (0-18)
    * @param col - Cell column coordinate (0-18)
    * @returns JSX element representing the board cell
    */
   const renderCell = (row: number, col: number) => {
     // ===== CELL STATE ANALYSIS =====
-    const cell = gameState.board[row][col];          // Current stone at position (black/white/null)
-    const cellState = cellStates[row][col];          // Animation and interaction state
-    const isLastMove =                               // True if this was the most recent move
+    const cell = gameState.board[row][col]; // Current stone at position (black/white/null)
+    const cellState = cellStates[row][col]; // Animation and interaction state
+    const isLastMove = // True if this was the most recent move
       gameState.lastMove?.row === row && gameState.lastMove?.col === col;
-    const isWinningCell = gameState.winningLine?.some( // True if part of winning line
+    const isWinningCell = gameState.winningLine?.some(
+      // True if part of winning line
       ([r, c]) => r === row && c === col
     );
     const isHovered = hoveredCell?.[0] === row && hoveredCell?.[1] === col; // True if mouse hovering
@@ -717,14 +717,14 @@ const GomokuGame: React.FC = () => {
       <div
         key={`${row}-${col}`}
         className={`board-cell group relative transition-all duration-200 ${
-          isWinningCell ? "animate-pulse-soft" : ""  // Winning cells pulse softly
+          isWinningCell ? "animate-pulse-soft" : "" // Winning cells pulse softly
         } ${isHovered ? "scale-110 z-20" : "z-10"}`} // Hover enlarges cell
-        onClick={() => makeMove(row, col)}            // Handle click to place stone
-        onMouseEnter={() => handleCellHover(row, col, true)}  // Show hover effects
+        onClick={() => makeMove(row, col)} // Handle click to place stone
+        onMouseEnter={() => handleCellHover(row, col, true)} // Show hover effects
         onMouseLeave={() => handleCellHover(row, col, false)} // Hide hover effects
       >
         {/* ===== VISUAL HIGHLIGHTS ===== */}
-        
+
         {/* Last move indicator - subtle glow around most recent move */}
         {isLastMove && (
           <div className="absolute inset-0 bg-primary-200/40 rounded-full animate-pulse-soft" />
@@ -740,15 +740,17 @@ const GomokuGame: React.FC = () => {
           // Placed stone with animations and styling
           <div
             className={`stone ${
-              cell === "black" ? "stone-black" : "stone-white"    // Stone color
-            } ${cellState.isNew ? "animate-stone-place" : ""      // Placement animation
-            } ${cellState.isUndoing ? "animate-undo" : ""         // Undo animation
+              cell === "black" ? "stone-black" : "stone-white" // Stone color
+            } ${
+              cellState.isNew ? "animate-stone-place" : "" // Placement animation
+            } ${
+              cellState.isUndoing ? "animate-undo" : "" // Undo animation
             } ${isLastMove ? "ring-2 ring-primary-400 ring-opacity-60" : ""}`} // Last move ring
           />
-        ) : isHovered &&                                          // Show preview stone if:
-          gameState.currentPlayer === "black" &&                  // - It's human's turn
-          gameState.status === "playing" &&                       // - Game is active
-          !isThinking ? (                                         // - AI isn't thinking
+        ) : isHovered && // Show preview stone if:
+          gameState.currentPlayer === "black" && // - It's human's turn
+          gameState.status === "playing" && // - Game is active
+          !isThinking ? ( // - AI isn't thinking
           <div className="stone stone-black stone-preview animate-stone-hover" />
         ) : null}
 
@@ -764,27 +766,27 @@ const GomokuGame: React.FC = () => {
   /**
    * Get TailwindCSS color class for difficulty level
    * Used for consistent color theming across UI
-   * 
+   *
    * @param level - AI difficulty setting
    * @returns TailwindCSS text color class
    */
   const getDifficultyColor = (level: Difficulty) => {
     switch (level) {
       case "easy":
-        return "text-green-600";   // Green for easy/beginner
+        return "text-green-600"; // Green for easy/beginner
       case "medium":
-        return "text-yellow-600";  // Yellow for medium/intermediate
+        return "text-yellow-600"; // Yellow for medium/intermediate
       case "hard":
-        return "text-red-600";     // Red for hard/expert
+        return "text-red-600"; // Red for hard/expert
       default:
-        return "text-gray-600";    // Fallback gray
+        return "text-gray-600"; // Fallback gray
     }
   };
 
   /**
    * Get appropriate icon component for difficulty level
    * Visual indicators that help users understand AI strength
-   * 
+   *
    * @param level - AI difficulty setting
    * @returns Lucide React icon component
    */
@@ -793,25 +795,25 @@ const GomokuGame: React.FC = () => {
       case "easy":
         return <Sparkles className="w-4 h-4 text-green-500" />; // Sparkles = fun/easy
       case "medium":
-        return <Brain className="w-4 h-4 text-yellow-500" />;   // Brain = thinking/strategy
+        return <Brain className="w-4 h-4 text-yellow-500" />; // Brain = thinking/strategy
       case "hard":
-        return <Zap className="w-4 h-4 text-red-500" />;       // Lightning = power/speed
+        return <Zap className="w-4 h-4 text-red-500" />; // Lightning = power/speed
     }
   };
 
   /**
    * Get human-readable description of AI difficulty
    * Explains what each difficulty level means in technical terms
-   * 
+   *
    * @param level - AI difficulty setting
    * @returns User-friendly description string
    */
   const getDifficultyDescription = (level: Difficulty) => {
     switch (level) {
       case "easy":
-        return "1 move ahead with alpha-beta pruning";           // Shallow search
+        return "1 move ahead with alpha-beta pruning"; // Shallow search
       case "medium":
-        return "Up to 4 moves ahead for strategic play";         // Moderate depth
+        return "Up to 4 moves ahead for strategic play"; // Moderate depth
       case "hard":
         return "Advanced search with iterative deepening (up to 5 moves)"; // Deep analysis
     }
@@ -822,12 +824,12 @@ const GomokuGame: React.FC = () => {
   /**
    * Handle successful authentication
    * Updates local state and closes authentication modal
-   * 
+   *
    * @param user - Authenticated user data from server
    */
   const handleAuthSuccess = (user: AuthUser) => {
-    setAuthUser(user);           // Store user in local state
-    setIsAuthModalOpen(false);   // Close login modal
+    setAuthUser(user); // Store user in local state
+    setIsAuthModalOpen(false); // Close login modal
   };
 
   /**
@@ -835,9 +837,9 @@ const GomokuGame: React.FC = () => {
    * Clears authentication state and closes user menu
    */
   const handleLogout = async () => {
-    await authService.logout();  // Clear server-side session
-    setAuthUser(null);           // Clear local user state
-    setShowUserMenu(false);      // Close user dropdown
+    await authService.logout(); // Clear server-side session
+    setAuthUser(null); // Clear local user state
+    setShowUserMenu(false); // Close user dropdown
   };
 
   /**
@@ -845,7 +847,7 @@ const GomokuGame: React.FC = () => {
    * Opens the authentication modal for login/registration
    */
   const handleLoginClick = () => {
-    setIsAuthModalOpen(true);    // Show login/register modal
+    setIsAuthModalOpen(true); // Show login/register modal
   };
 
   // ==================== UI EVENT HANDLERS ====================
@@ -857,7 +859,7 @@ const GomokuGame: React.FC = () => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showUserMenu) {
-        setShowUserMenu(false);  // Close menu on any click when open
+        setShowUserMenu(false); // Close menu on any click when open
       }
     };
 

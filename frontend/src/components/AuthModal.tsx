@@ -1,20 +1,20 @@
 // React and UI imports
 import React, { useState } from "react";
-import { 
-  X,         // Close button icon
-  Mail,      // Email field icon
-  Lock,      // Password field icon
-  User,      // Name field icon
-  Github,    // GitHub OAuth button icon
-  Chrome,    // Google OAuth button icon (using Chrome as proxy)
-  Eye,       // Show password icon
-  EyeOff     // Hide password icon
+import {
+  X, // Close button icon
+  Mail, // Email field icon
+  Lock, // Password field icon
+  User, // Name field icon
+  Github, // GitHub OAuth button icon
+  Chrome, // Google OAuth button icon (using Chrome as proxy)
+  Eye, // Show password icon
+  EyeOff, // Hide password icon
 } from "lucide-react";
 
 // Authentication service and types
 import authService, {
-  LoginCredentials,      // Type for login form data
-  RegisterCredentials,   // Type for registration form data
+  LoginCredentials, // Type for login form data
+  RegisterCredentials, // Type for registration form data
 } from "../services/authService.ts";
 
 // ==================== COMPONENT INTERFACES ====================
@@ -23,9 +23,9 @@ import authService, {
  * Props for the AuthModal component
  */
 interface AuthModalProps {
-  isOpen: boolean;                    // Controls modal visibility
-  onClose: () => void;                // Callback when modal should close
-  onSuccess: (user: any) => void;     // Callback when authentication succeeds
+  isOpen: boolean; // Controls modal visibility
+  onClose: () => void; // Callback when modal should close
+  onSuccess: (user: any) => void; // Callback when authentication succeeds
 }
 
 /**
@@ -43,31 +43,30 @@ type AuthMode = "login" | "register";
  * Features glass morphism design with smooth animations and error handling
  */
 export const AuthModal: React.FC<AuthModalProps> = ({
-  isOpen,      // Whether modal is currently visible
-  onClose,     // Function to call when closing modal
-  onSuccess,   // Function to call when authentication succeeds
+  isOpen, // Whether modal is currently visible
+  onClose, // Function to call when closing modal
+  onSuccess, // Function to call when authentication succeeds
 }) => {
-  
   // ==================== STATE MANAGEMENT ====================
-  
+
   /**
    * Current authentication mode (login vs register)
    * Controls which form is displayed and which validation rules apply
    */
   const [mode, setMode] = useState<AuthMode>("login");
-  
+
   /**
    * Loading state for async operations
    * Prevents multiple simultaneous requests and shows loading indicators
    */
   const [isLoading, setIsLoading] = useState(false);
-  
+
   /**
    * Error message to display to user
    * Shows validation errors, network errors, or authentication failures
    */
   const [error, setError] = useState<string>("");
-  
+
   /**
    * Password visibility toggle
    * Allows users to see what they're typing in password fields
@@ -75,26 +74,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
 
   // ==================== FORM STATE ====================
-  
+
   /**
    * Login form data
    * Stores email and password for existing user authentication
    */
   const [loginForm, setLoginForm] = useState<LoginCredentials>({
-    email: "",    // User's email address
-    password: "",  // User's password
+    email: "", // User's email address
+    password: "", // User's password
   });
 
   /**
-   * Registration form data  
+   * Registration form data
    * Stores all required fields for creating a new user account
    */
   const [registerForm, setRegisterForm] = useState<RegisterCredentials>({
-    email: "",                // User's email address
-    password: "",             // User's chosen password
+    email: "", // User's email address
+    password: "", // User's chosen password
     password_confirmation: "", // Password confirmation for validation
-    username: "",             // Unique username for the user
-    name: "",                 // User's display name
+    username: "", // Unique username for the user
+    name: "", // User's display name
   });
 
   // ==================== UTILITY FUNCTIONS ====================
@@ -104,16 +103,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
    * Called when modal closes or switches between login/register modes
    */
   const resetForms = () => {
-    setLoginForm({ email: "", password: "" });            // Clear login form
-    setRegisterForm({                                     // Clear registration form
+    setLoginForm({ email: "", password: "" }); // Clear login form
+    setRegisterForm({
+      // Clear registration form
       email: "",
       password: "",
       password_confirmation: "",
       username: "",
       name: "",
     });
-    setError("");                                         // Clear any error messages
-    setShowPassword(false);                               // Hide password by default
+    setError(""); // Clear any error messages
+    setShowPassword(false); // Hide password by default
   };
 
   /**
@@ -121,8 +121,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
    * Resets all state and notifies parent component
    */
   const handleClose = () => {
-    resetForms();    // Clean up form data and state
-    onClose();       // Notify parent to hide modal
+    resetForms(); // Clean up form data and state
+    onClose(); // Notify parent to hide modal
   };
 
   // ==================== AUTHENTICATION HANDLERS ====================
@@ -130,13 +130,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   /**
    * Handle email/password login form submission
    * Validates form, calls auth service, and handles response
-   * 
+   *
    * @param e - Form submission event
    */
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();   // Prevent default form submission
-    setIsLoading(true);   // Show loading state
-    setError("");         // Clear previous errors
+    e.preventDefault(); // Prevent default form submission
+    setIsLoading(true); // Show loading state
+    setError(""); // Clear previous errors
 
     try {
       // Attempt login with email and password
@@ -161,11 +161,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   /**
    * Handle new user registration form submission
    * Validates passwords match, calls auth service, and handles response
-   * 
+   *
    * @param e - Form submission event
    */
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();   // Prevent default form submission
+    e.preventDefault(); // Prevent default form submission
 
     // ===== CLIENT-SIDE VALIDATION =====
     if (registerForm.password !== registerForm.password_confirmation) {
@@ -173,8 +173,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return; // Stop registration if passwords don't match
     }
 
-    setIsLoading(true);   // Show loading state
-    setError("");         // Clear previous errors
+    setIsLoading(true); // Show loading state
+    setError(""); // Clear previous errors
 
     try {
       // Attempt registration with form data
@@ -204,8 +204,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
    * Redirects to Google OAuth flow or handles popup-based authentication
    */
   const handleGoogleLogin = async () => {
-    setIsLoading(true);   // Show loading state
-    setError("");         // Clear previous errors
+    setIsLoading(true); // Show loading state
+    setError(""); // Clear previous errors
 
     try {
       // Initiate Google OAuth flow
@@ -228,12 +228,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   /**
-   * Handle GitHub OAuth login  
+   * Handle GitHub OAuth login
    * Redirects to GitHub OAuth flow or handles popup-based authentication
    */
   const handleGitHubLogin = async () => {
-    setIsLoading(true);   // Show loading state
-    setError("");         // Clear previous errors
+    setIsLoading(true); // Show loading state
+    setError(""); // Clear previous errors
 
     try {
       // Initiate GitHub OAuth flow

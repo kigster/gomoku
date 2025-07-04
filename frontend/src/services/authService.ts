@@ -1,6 +1,6 @@
 /**
  * Authentication Service for Gomoku Game
- * 
+ *
  * Handles all authentication operations including:
  * - Email/password login and registration
  * - OAuth integration (Google, GitHub)
@@ -29,21 +29,21 @@ axios.defaults.headers.common["Content-Type"] = "application/json";
  * Contains profile information and game statistics
  */
 export interface User {
-  id: number;          // Unique user identifier
-  email: string;       // User's email address
-  username: string;    // Unique username for display
-  name: string;        // User's full/display name
-  provider?: string;   // OAuth provider (google, github, or null for email)
+  id: number; // Unique user identifier
+  email: string; // User's email address
+  username: string; // Unique username for display
+  name: string; // User's full/display name
+  provider?: string; // OAuth provider (google, github, or null for email)
   avatar_url?: string; // Profile picture URL from OAuth or uploaded
-  
+
   // Game statistics
   games_played: number; // Total games completed
-  games_won: number;    // Games won by this user
-  games_lost: number;   // Games lost by this user
-  games_drawn: number;  // Games ending in draw
-  rating: number;       // ELO-style rating for matchmaking
-  
-  created_at: string;   // Account creation timestamp
+  games_won: number; // Games won by this user
+  games_lost: number; // Games lost by this user
+  games_drawn: number; // Games ending in draw
+  rating: number; // ELO-style rating for matchmaking
+
+  created_at: string; // Account creation timestamp
 }
 
 /**
@@ -51,12 +51,12 @@ export interface User {
  * Provides consistent error handling and success indication
  */
 export interface AuthResponse {
-  success: boolean;     // Whether the operation succeeded
-  token?: string;       // JWT token for authenticated requests
-  user?: User;          // User data if authentication successful
-  error?: string;       // Single error message
-  errors?: string[];    // Array of validation errors (registration)
-  message?: string;     // Additional info message
+  success: boolean; // Whether the operation succeeded
+  token?: string; // JWT token for authenticated requests
+  user?: User; // User data if authentication successful
+  error?: string; // Single error message
+  errors?: string[]; // Array of validation errors (registration)
+  message?: string; // Additional info message
 }
 
 /**
@@ -64,8 +64,8 @@ export interface AuthResponse {
  * Simple email/password authentication
  */
 export interface LoginCredentials {
-  email: string;        // User's email address
-  password: string;     // User's password
+  email: string; // User's email address
+  password: string; // User's password
 }
 
 /**
@@ -73,11 +73,11 @@ export interface LoginCredentials {
  * Includes all required fields for new account creation
  */
 export interface RegisterCredentials {
-  email: string;                // User's email address
-  password: string;             // User's chosen password
+  email: string; // User's email address
+  password: string; // User's chosen password
   password_confirmation: string; // Password confirmation for validation
-  username: string;             // Chosen username (must be unique)
-  name: string;                 // User's display name
+  username: string; // Chosen username (must be unique)
+  name: string; // User's display name
 }
 
 /**
@@ -85,19 +85,19 @@ export interface RegisterCredentials {
  * Normalized format for Google, GitHub, and other OAuth providers
  */
 export interface OAuthData {
-  id?: string;          // Provider-specific user ID (GitHub)
-  sub?: string;         // Subject identifier (Google)
-  email: string;        // User's email from OAuth provider
-  name: string;         // User's name from OAuth provider
-  picture?: string;     // Profile picture URL (Google)
-  avatar_url?: string;  // Profile picture URL (GitHub)
+  id?: string; // Provider-specific user ID (GitHub)
+  sub?: string; // Subject identifier (Google)
+  email: string; // User's email from OAuth provider
+  name: string; // User's name from OAuth provider
+  picture?: string; // Profile picture URL (Google)
+  avatar_url?: string; // Profile picture URL (GitHub)
 }
 
 // ==================== AUTHENTICATION SERVICE CLASS ====================
 
 /**
  * AuthService - Singleton class managing user authentication and session state
- * 
+ *
  * Features:
  * - JWT token management with automatic header setting
  * - Local storage persistence for session recovery
@@ -107,13 +107,13 @@ export interface OAuthData {
  */
 class AuthService {
   // ==================== PRIVATE STATE ====================
-  
+
   /**
    * Current JWT authentication token
    * Used for authenticated API requests to Rails backend
    */
   private token: string | null = null;
-  
+
   /**
    * Current authenticated user data
    * Cached locally to avoid repeated API calls
@@ -121,7 +121,7 @@ class AuthService {
   private user: User | null = null;
 
   // ==================== INITIALIZATION ====================
-  
+
   /**
    * Constructor - Restore session from localStorage if available
    * Called once when service is imported, ensures session persistence
@@ -143,7 +143,7 @@ class AuthService {
   /**
    * Configure axios to include JWT token in all future requests
    * Sets the Authorization header for automatic authentication
-   * 
+   *
    * @param token - JWT token to include in requests
    */
   private setAuthHeader(token: string) {
@@ -161,7 +161,7 @@ class AuthService {
   /**
    * Save authentication session to memory and localStorage
    * Ensures session persists across browser refreshes
-   * 
+   *
    * @param token - JWT token from successful authentication
    * @param user - User data from successful authentication
    */
@@ -169,11 +169,11 @@ class AuthService {
     // Update in-memory state
     this.token = token;
     this.user = user;
-    
+
     // Persist to localStorage for session recovery
     localStorage.setItem("gomoku_token", token);
     localStorage.setItem("gomoku_user", JSON.stringify(user));
-    
+
     // Configure axios for authenticated requests
     this.setAuthHeader(token);
   }
@@ -186,11 +186,11 @@ class AuthService {
     // Clear in-memory state
     this.token = null;
     this.user = null;
-    
+
     // Clear persisted state
     localStorage.removeItem("gomoku_token");
     localStorage.removeItem("gomoku_user");
-    
+
     // Remove authentication headers
     this.removeAuthHeader();
   }
@@ -200,7 +200,7 @@ class AuthService {
   /**
    * Get currently authenticated user data
    * Returns cached user object or null if not authenticated
-   * 
+   *
    * @returns Current user data or null
    */
   getCurrentUser(): User | null {
@@ -210,7 +210,7 @@ class AuthService {
   /**
    * Check if user is currently authenticated
    * Verifies both token and user data are present
-   * 
+   *
    * @returns true if user is authenticated, false otherwise
    */
   isAuthenticated(): boolean {
@@ -220,7 +220,7 @@ class AuthService {
   /**
    * Authenticate user with email and password
    * Calls Rails backend for credential verification
-   * 
+   *
    * @param credentials - Email and password for authentication
    * @returns Promise resolving to authentication response
    */
@@ -251,7 +251,7 @@ class AuthService {
   /**
    * Register new user account
    * Creates new user in Rails backend and automatically logs them in
-   * 
+   *
    * @param credentials - Registration form data including email, password, username, name
    * @returns Promise resolving to authentication response
    */
@@ -283,7 +283,7 @@ class AuthService {
   /**
    * Authenticate user with OAuth provider data
    * Handles both Google and GitHub OAuth flows
-   * 
+   *
    * @param provider - OAuth provider name ("google" or "github")
    * @param authData - Normalized user data from OAuth provider
    * @returns Promise resolving to authentication response
@@ -295,7 +295,7 @@ class AuthService {
     try {
       // Send OAuth data to Rails API for user creation/login
       const response = await axios.post(`${API_BASE_URL}/auth/oauth`, {
-        provider,         // Which OAuth provider
+        provider, // Which OAuth provider
         auth_data: authData, // User data from OAuth provider
       });
 
@@ -339,7 +339,7 @@ class AuthService {
    * Refresh user data from backend
    * Updates local user data with latest from server (stats, rating, etc.)
    * Used after games to sync updated statistics
-   * 
+   *
    * @returns Promise resolving to updated user data or null if failed
    */
   async refreshUserData(): Promise<User | null> {
@@ -370,14 +370,14 @@ class AuthService {
 
   /**
    * Google OAuth authentication helper
-   * 
+   *
    * NOTE: This is a simplified implementation for development
    * In production, implement actual Google OAuth 2.0 flow:
    * 1. Redirect to Google OAuth consent screen
    * 2. Handle OAuth callback with authorization code
    * 3. Exchange code for access token
    * 4. Fetch user profile from Google API
-   * 
+   *
    * @returns Promise resolving to authentication response
    */
   async loginWithGoogle(): Promise<AuthResponse> {
@@ -389,10 +389,10 @@ class AuthService {
       // Simulate OAuth data (replace with actual Google OAuth implementation)
       // In production, this data would come from Google's API after OAuth consent
       const mockGoogleData: OAuthData = {
-        sub: "google_user_123",                                         // Google user ID
-        email: "user@gmail.com",                                        // User's email
-        name: "Google User",                                            // User's name
-        picture: "https://lh3.googleusercontent.com/a/default-user",   // Profile picture
+        sub: "google_user_123", // Google user ID
+        email: "user@gmail.com", // User's email
+        name: "Google User", // User's name
+        picture: "https://lh3.googleusercontent.com/a/default-user", // Profile picture
       };
 
       // Use the OAuth login method with simulated Google data
@@ -407,14 +407,14 @@ class AuthService {
 
   /**
    * GitHub OAuth authentication helper
-   * 
+   *
    * NOTE: This is a simplified implementation for development
    * In production, implement actual GitHub OAuth flow:
    * 1. Redirect to GitHub OAuth authorization
-   * 2. Handle OAuth callback with authorization code  
+   * 2. Handle OAuth callback with authorization code
    * 3. Exchange code for access token
    * 4. Fetch user profile from GitHub API
-   * 
+   *
    * @returns Promise resolving to authentication response
    */
   async loginWithGitHub(): Promise<AuthResponse> {
@@ -426,9 +426,9 @@ class AuthService {
       // Simulate OAuth data (replace with actual GitHub OAuth implementation)
       // In production, this data would come from GitHub's API after OAuth consent
       const mockGitHubData: OAuthData = {
-        id: "github_user_456",                                             // GitHub user ID
-        email: "user@users.noreply.github.com",                           // User's email (may be private)
-        name: "GitHub User",                                               // User's name
+        id: "github_user_456", // GitHub user ID
+        email: "user@users.noreply.github.com", // User's email (may be private)
+        name: "GitHub User", // User's name
         avatar_url: "https://avatars.githubusercontent.com/u/123456?v=4", // Profile picture
       };
 
@@ -448,7 +448,7 @@ class AuthService {
 /**
  * Singleton instance of AuthService
  * Use this instance throughout the application for consistent state management
- * 
+ *
  * Example usage:
  *   import authService from './services/authService';
  *   const user = authService.getCurrentUser();

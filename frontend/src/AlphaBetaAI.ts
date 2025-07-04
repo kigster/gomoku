@@ -305,12 +305,15 @@ export class AlphaBetaGomokuAI {
   /**
    * Board evaluation function based on C heuristics
    * Evaluates how good the current position is from the current player's perspective
-   * 
+   *
    * @param board - Current board state
    * @param isMaximizingPlayer - true if evaluating from AI's perspective, false for human's perspective
    * @returns Evaluation score (positive = good for current player, negative = bad)
    */
-  private evaluateBoard(board: CellType[][], isMaximizingPlayer: boolean): number {
+  private evaluateBoard(
+    board: CellType[][],
+    isMaximizingPlayer: boolean
+  ): number {
     let aiScore = 0; // Total threat value for AI
     let humanScore = 0; // Total threat value for human
 
@@ -330,7 +333,10 @@ export class AlphaBetaGomokuAI {
 
     // **CRITICAL FIX**: Check for immediate threats that must be addressed
     const immediateAIThreat = this.findImmediateThreat(board, this.aiPlayer);
-    const immediateHumanThreat = this.findImmediateThreat(board, this.humanPlayer);
+    const immediateHumanThreat = this.findImmediateThreat(
+      board,
+      this.humanPlayer
+    );
 
     // Immediate threats get MASSIVE priority (100,000+ points)
     let immediateBonus = 0;
@@ -340,7 +346,10 @@ export class AlphaBetaGomokuAI {
     }
     if (immediateHumanThreat !== null) {
       immediateBonus -= 100000; // Human can win - must defend immediately
-      console.log("🛡️ AI detected human threat, must defend at:", immediateHumanThreat);
+      console.log(
+        "🛡️ AI detected human threat, must defend at:",
+        immediateHumanThreat
+      );
     }
 
     // **TURN-AWARE EVALUATION**: Evaluate from current player's perspective
@@ -704,25 +713,28 @@ export class AlphaBetaGomokuAI {
    * Find immediate threats that must be addressed this turn
    * Scans for positions where a player can win on their next move
    * Also detects "four-threats" that create unstoppable winning sequences
-   * 
+   *
    * @param board - Current board state
    * @param player - Player to check threats for
    * @returns Position of immediate threat or null if none found
    */
-  private findImmediateThreat(board: CellType[][], player: CellType): { row: number, col: number } | null {
+  private findImmediateThreat(
+    board: CellType[][],
+    player: CellType
+  ): { row: number; col: number } | null {
     // First priority: Direct wins (placing a stone creates 5 in a row)
     for (let i = 0; i < this.BOARD_SIZE; i++) {
       for (let j = 0; j < this.BOARD_SIZE; j++) {
         if (board[i][j] === CellType.EMPTY) {
           // Temporarily place player's stone to test if it creates a win
           board[i][j] = player;
-          
+
           // Check if this move would create 5+ in a row (immediate win)
           if (this.checkWinAt(board, player, i, j)) {
             board[i][j] = CellType.EMPTY; // Undo the test move
             return { row: i, col: j }; // Found an immediate threat
           }
-          
+
           board[i][j] = CellType.EMPTY; // Undo the test move
         }
       }
@@ -740,60 +752,89 @@ export class AlphaBetaGomokuAI {
         }
       }
     }
-    
+
     return null; // No immediate threats found
   }
 
   /**
    * Check if placing a stone creates a critical four-threat that needs immediate response
    * Detects patterns like _XXXX_ (straight four) that guarantee a win next turn
-   * 
+   *
    * @param board - Current board state
-   * @param player - Player to check threats for  
+   * @param player - Player to check threats for
    * @param row - Row to test
    * @param col - Column to test
    * @returns true if this creates a critical four-threat
    */
-  private checkCriticalFourThreat(board: CellType[][], player: CellType, row: number, col: number): boolean {
+  private checkCriticalFourThreat(
+    board: CellType[][],
+    player: CellType,
+    row: number,
+    col: number
+  ): boolean {
     // Temporarily place the stone
     board[row][col] = player;
-    
+
     // Check all directions for critical four patterns
     const directions = [
-      [0, 1],   // Horizontal
-      [1, 0],   // Vertical  
-      [1, 1],   // Diagonal \
-      [1, -1]   // Diagonal /
+      [0, 1], // Horizontal
+      [1, 0], // Vertical
+      [1, 1], // Diagonal \
+      [1, -1], // Diagonal /
     ];
 
     for (const [dx, dy] of directions) {
       let count = 1; // Count the stone we just placed
-      let leftOpen = false;  // Space on left side
+      let leftOpen = false; // Space on left side
       let rightOpen = false; // Space on right side
 
       // Count in positive direction
       let r = row + dx;
       let c = col + dy;
-      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+      while (
+        r >= 0 &&
+        r < this.BOARD_SIZE &&
+        c >= 0 &&
+        c < this.BOARD_SIZE &&
+        board[r][c] === player
+      ) {
         count++;
         r += dx;
         c += dy;
       }
       // Check if there's an open space after the sequence
-      if (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === CellType.EMPTY) {
+      if (
+        r >= 0 &&
+        r < this.BOARD_SIZE &&
+        c >= 0 &&
+        c < this.BOARD_SIZE &&
+        board[r][c] === CellType.EMPTY
+      ) {
         rightOpen = true;
       }
 
-      // Count in negative direction  
+      // Count in negative direction
       r = row - dx;
       c = col - dy;
-      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+      while (
+        r >= 0 &&
+        r < this.BOARD_SIZE &&
+        c >= 0 &&
+        c < this.BOARD_SIZE &&
+        board[r][c] === player
+      ) {
         count++;
         r -= dx;
         c -= dy;
       }
       // Check if there's an open space before the sequence
-      if (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === CellType.EMPTY) {
+      if (
+        r >= 0 &&
+        r < this.BOARD_SIZE &&
+        c >= 0 &&
+        c < this.BOARD_SIZE &&
+        board[r][c] === CellType.EMPTY
+      ) {
         leftOpen = true;
       }
 
@@ -812,20 +853,25 @@ export class AlphaBetaGomokuAI {
 
   /**
    * Check if placing a stone at a specific position creates a win
-   * 
+   *
    * @param board - Current board state
    * @param player - Player who placed the stone
    * @param row - Row where stone was placed
    * @param col - Column where stone was placed
    * @returns true if this creates 5+ in a row
    */
-  private checkWinAt(board: CellType[][], player: CellType, row: number, col: number): boolean {
+  private checkWinAt(
+    board: CellType[][],
+    player: CellType,
+    row: number,
+    col: number
+  ): boolean {
     // Check all four directions from the placed stone
     const directions = [
-      [0, 1],   // Horizontal
-      [1, 0],   // Vertical  
-      [1, 1],   // Diagonal \
-      [1, -1]   // Diagonal /
+      [0, 1], // Horizontal
+      [1, 0], // Vertical
+      [1, 1], // Diagonal \
+      [1, -1], // Diagonal /
     ];
 
     for (const [dx, dy] of directions) {
@@ -834,7 +880,13 @@ export class AlphaBetaGomokuAI {
       // Count in positive direction
       let r = row + dx;
       let c = col + dy;
-      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+      while (
+        r >= 0 &&
+        r < this.BOARD_SIZE &&
+        c >= 0 &&
+        c < this.BOARD_SIZE &&
+        board[r][c] === player
+      ) {
         count++;
         r += dx;
         c += dy;
@@ -843,7 +895,13 @@ export class AlphaBetaGomokuAI {
       // Count in negative direction
       r = row - dx;
       c = col - dy;
-      while (r >= 0 && r < this.BOARD_SIZE && c >= 0 && c < this.BOARD_SIZE && board[r][c] === player) {
+      while (
+        r >= 0 &&
+        r < this.BOARD_SIZE &&
+        c >= 0 &&
+        c < this.BOARD_SIZE &&
+        board[r][c] === player
+      ) {
         count++;
         r -= dx;
         c -= dy;
@@ -879,25 +937,28 @@ export class AlphaBetaGomokuAI {
     }
 
     // **PRIORITY DEFENSIVE MOVES**: Check for immediate threats first
-    const immediateHumanThreat = this.findImmediateThreat(board, this.humanPlayer);
+    const immediateHumanThreat = this.findImmediateThreat(
+      board,
+      this.humanPlayer
+    );
     const immediateAIThreat = this.findImmediateThreat(board, this.aiPlayer);
-    
+
     // If there's an immediate threat, prioritize those positions
     if (immediateHumanThreat) {
       console.log("🛡️ Prioritizing defense at:", immediateHumanThreat);
-      moves.push({ 
-        row: immediateHumanThreat.row, 
-        col: immediateHumanThreat.col, 
-        score: 200000 // Massive priority for defensive moves
+      moves.push({
+        row: immediateHumanThreat.row,
+        col: immediateHumanThreat.col,
+        score: 200000, // Massive priority for defensive moves
       });
     }
-    
+
     if (immediateAIThreat) {
       console.log("🏆 Prioritizing winning move at:", immediateAIThreat);
-      moves.push({ 
-        row: immediateAIThreat.row, 
-        col: immediateAIThreat.col, 
-        score: 300000 // Even higher priority for winning moves
+      moves.push({
+        row: immediateAIThreat.row,
+        col: immediateAIThreat.col,
+        score: 300000, // Even higher priority for winning moves
       });
     }
 
@@ -908,9 +969,11 @@ export class AlphaBetaGomokuAI {
         // Only consider empty positions that have neighboring stones
         if (board[i][j] === CellType.EMPTY && this.hasNeighbor(board, i, j)) {
           // Skip if this move is already added as a priority move
-          const isAlreadyAdded = moves.some(move => move.row === i && move.col === j);
+          const isAlreadyAdded = moves.some(
+            (move) => move.row === i && move.col === j
+          );
           if (isAlreadyAdded) continue;
-          
+
           // Calculate preliminary score for move ordering
           // Better moves will be searched first, improving alpha-beta pruning
           const score = this.calculateScoreAt(board, this.aiPlayer, i, j);
